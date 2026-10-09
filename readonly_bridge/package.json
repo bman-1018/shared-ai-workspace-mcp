@@ -1,0 +1,15 @@
+{
+  "name": "readonly_bridge",
+  "version": "1.0.0",
+  "description": "Read-only MCP server: lets Claude read one codebase folder and run a short list of read-only git commands.",
+  "scripts": {},
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
