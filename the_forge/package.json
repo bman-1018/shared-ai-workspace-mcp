@@ -1,0 +1,18 @@
+{
+  "name": "the_forge",
+  "version": "1.0.0",
+  "description": "Dynamic MCP Hot-Swapping Router: loads tool plugins from Hot_Plugins without restarting Claude Desktop.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

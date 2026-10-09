@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /the_forge
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /readonly_bridge
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /The_Observer
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

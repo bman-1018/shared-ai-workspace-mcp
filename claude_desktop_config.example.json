@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "The_Forge": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "X:\\Claude_Workspace\\_mcp_tools\\the_forge\\index.js"
+      ],
+      "env": {
+        "X9_ROOT": "X:\\Claude_Workspace"
+      }
+    },
+    "C_Drive_ReadOnly": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "X:\\Claude_Workspace\\_mcp_tools\\readonly_bridge\\index.js"
+      ],
+      "env": {
+        "READONLY_BRIDGE_DIR": "C:\\path\\to\\your\\project",
+        "READONLY_BRIDGE_BLOCK_SECRETS": "1"
+      }
+    },
+    "X9_External_Drive": {
+      "command": "C:\\Program Files\\nodejs\\npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2026.8.31",
+        "X:\\Claude_Workspace\\_context",
+        "X:\\Claude_Workspace\\01_Active_Projects",
+        "X:\\Claude_Workspace\\02_Raw_Inputs",
+        "X:\\Claude_Workspace\\03_Final_Outputs",
+        "X:\\Claude_Workspace\\04_Session_Notes",
+        "X:\\Claude_Workspace\\05_Claude_Code_Handoff",
+        "X:\\Claude_Workspace\\06_Code_Plans",
+        "X:\\Claude_Workspace\\07_Chat_History",
+        "X:\\Claude_Workspace\\08_Cowork_Handoff",
+        "X:\\Claude_Workspace\\09_For_Codex",
+        "X:\\Claude_Workspace\\memory",
+        "X:\\Claude_Workspace\\Tasks"
+      ]
+    },
+    "Codex_ReadOnly": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "X:\\Claude_Workspace\\_mcp_tools\\readonly_bridge\\index.js"
+      ],
+      "env": {
+        "READONLY_BRIDGE_DIR": "X:\\Codex_Workspace",
+        "READONLY_BRIDGE_BLOCK_SECRETS": "1"
+      }
+    }
+  }
+}

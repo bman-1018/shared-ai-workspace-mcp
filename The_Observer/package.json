@@ -1,0 +1,15 @@
+{
+  "name": "the_observer",
+  "version": "1.0.0",
+  "description": "Copies the chat log (audit.jsonl) of Claude Desktop agent-mode sessions to an external drive and converts it to readable markdown.",
+  "scripts": {},
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "fs-extra": "^11.3.4"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

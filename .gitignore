@@ -1,0 +1,31 @@
+# Dependencies (users run: npm run install:all)
+node_modules/
+
+# Search index and anything built from your files. It contains the text of your documents.
+*.db
+*.db-journal
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+
+# Runtime output and staging
+Hot_Plugins/_temp/
+07_Chat_History/
+*.log
+
+# Secrets and your real Claude Desktop config
+.env
+.env.*
+*.pem
+*.key
+claude_desktop_config.json
+
+# Windows
+*.lnk
+Thumbs.db
+desktop.ini
+
+# Private scratch
+_recon_archive/
