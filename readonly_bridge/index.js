@@ -129,7 +129,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["command"],
       },
     }
-  ],
+  ].map((t) => ({
+    ...t,
+    // Every tool here only reads. Clients such as Claude Desktop use readOnlyHint to
+    // offer "allow for all tasks" instead of asking on every call.
+    annotations: { title: t.name, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  })),
 }));
 
 // Execution Logic
@@ -204,7 +209,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // core.fsmonitor=false stops a repo-level config from launching a helper program.
         const { stdout, stderr } = await execFilePromise(
           "git",
-          ["--no-pager", "-c", "core.fsmonitor=false", ...allowedCommands[args.command]],
+          ["--no-pager", "--no-optional-locks", "-c", "core.fsmonitor=false", ...allowedCommands[args.command]],
           { cwd: ALLOWED_DIR, timeout: 30000, maxBuffer: 10 * 1024 * 1024, windowsHide: true }
         );
         return { content: [{ type: "text", text: stdout || stderr || "No output." }] };

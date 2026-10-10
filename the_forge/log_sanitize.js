@@ -17,6 +17,13 @@ const SECRET_VALUE = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g,
 ];
 
+// Replaces strings that look like API keys, tokens or private keys. Does not shorten the text.
+export function redactSecrets(s) {
+  let out = String(s);
+  for (const re of SECRET_VALUE) out = out.replace(re, "[REDACTED]");
+  return out;
+}
+
 function cleanString(s) {
   let out = s;
   for (const re of SECRET_VALUE) out = out.replace(re, "[REDACTED]");

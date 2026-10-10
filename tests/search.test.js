@@ -55,3 +55,69 @@ test("search finds indexed text and skips secret-named files", { skip: PY ? fals
   assert.equal((await toolHandler({ query: "a".repeat(501) })).error, true);
   assert.equal((await toolHandler({ query: 42 })).error, true);
 });
+
+// ---- Search quality: the problems that made search unusable over time ----
+const WS2_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "x9-search2-"));
+const WS2 = path.join(WS2_ROOT, "Claude_Workspace");
+const CODEX2 = path.join(WS2_ROOT, "Codex_Workspace");
+const DB2 = path.join(WS2_ROOT, "index2.db");
+const write = (p, text) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
+write(path.join(WS2, "01_Active_Projects", "rollout-checklist.md"), "Steps for the launch.");
+write(path.join(WS2, "04_Session_Notes", "design.md"), "The deploy checklist covers staging and the migration order.");
+write(path.join(WS2, "07_Chat_History", "2026-01-01_Forge_Action_Log.jsonl"), '{"output":"deploy checklist staging migration"}');
+write(path.join(WS2, "notes", "tiny.md"), "go to AB room");
+write(path.join(CODEX2, "02_Outbox", "from-codex.md"), "Codex wrote about the zebrafinding module.");
+test.after(() => fs.rmSync(WS2_ROOT, { recursive: true, force: true }));
+
+test("search: words in any order, file names, phrases, short terms, limits, Codex files, no logs", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, () => {
+  const env = { ...process.env, X9_ROOT: WS2, X9_DB_PATH: DB2 };
+  execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_indexer.py")], { env, stdio: "ignore" });
+  const q = (query, limit) => JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), query, ...(limit ? [String(limit)] : [])], { env }).toString());
+
+  // every word must match, any order
+  const a = q("migration deploy");
+  assert.ok(a.some((r) => r.path.endsWith("design.md")));
+  // the action log is never indexed
+  assert.ok(!a.some((r) => r.path.includes("07_Chat_History")));
+  // the file name is searched, not just the text
+  assert.ok(q("rollout checklist").some((r) => r.path.endsWith("rollout-checklist.md")));
+  // a quoted phrase stays together
+  assert.ok(q('"deploy checklist"').some((r) => r.path.endsWith("design.md")));
+  assert.equal(q('"checklist deploy"').length, 0);
+  // terms shorter than three letters still work
+  assert.ok(q("AB room").some((r) => r.path.endsWith("tiny.md")));
+  // the Codex workspace next to the Claude one is indexed
+  assert.ok(q("zebrafinding").some((r) => r.path.includes("Codex_Workspace")));
+  // results carry a date and a marked snippet
+  const hit = q("migration")[0];
+  assert.match(hit.modified, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(hit.context, />>migration<</i);
+  // limit is respected and capped
+  assert.equal(q("the", 1).length, 1);
+  // FTS syntax characters in a query are plain text
+  assert.doesNotThrow(() => q('AND OR NOT * ( ) " -x :y'));
+});
+
+test("search tool reports the index age and can skip the Codex workspace", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, () => {
+  const env = { ...process.env, X9_ROOT: WS2, X9_DB_PATH: path.join(WS2_ROOT, "index3.db"), X9_INDEX_CODEX: "0" };
+  execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_indexer.py")], { env, stdio: "ignore" });
+  const out = JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), "zebrafinding"], { env }).toString());
+  assert.equal(out.length, 0);
+});
+
+test("x9_search tool: limit, index age, stale warning", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, async () => {
+  const dbPath = path.join(WS2_ROOT, "index4.db");
+  execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_indexer.py")], { env: { ...process.env, X9_ROOT: WS2, X9_DB_PATH: dbPath }, stdio: "ignore" });
+  process.env.X9_DB_PATH = dbPath;
+  process.env.X9_PYTHON = PY;
+  const { toolHandler, toolSchema } = await import("../Hot_Plugins/x9_python_bridge.js");
+  assert.equal(toolSchema.annotations.readOnlyHint, true);
+  const fresh = await toolHandler({ query: "migration", limit: 1 });
+  assert.equal(fresh.status, "Success");
+  assert.equal(fresh.matches.length, 1);
+  assert.ok(fresh.index_built);
+  assert.equal(fresh.warning, undefined);
+  const old = new Date(Date.now() - 5 * 24 * 3600 * 1000);
+  fs.utimesSync(dbPath, old, old);
+  assert.match((await toolHandler({ query: "migration" })).warning, /5 days old/);
+});

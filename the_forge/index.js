@@ -9,6 +9,7 @@ import { pathToFileURL, fileURLToPath } from "url";
 import { execFile } from "child_process";
 import util from "util";
 import { formatLogLine } from "./log_sanitize.js";
+import { startIndexRefresh } from "./index_refresh.js";
 
 const execFilePromise = util.promisify(execFile);
 
@@ -86,9 +87,21 @@ async function runActiveSync() {
 // THE FORGE MCP SERVER
 // ====================================================================
 let activeTools = new Map();
+// Shown to the model by the client. It is what tells Claude to use these tools for
+// questions about past work instead of asking the user where files are.
+const INSTRUCTIONS =
+  "This server is the user's persistent workspace on an external drive (X9). " +
+  "When the user mentions earlier work, a past conversation, a project, a document, or a decision, " +
+  "call find_sessions (summaries of past Claude and Codex conversations) or x9_search (full text search of the workspace) " +
+  "before asking where something is and before asking for folder access. These two tools only read. " +
+  "Use x9_workspace_mapper to see folder layout. " +
+  "When a substantial conversation or work session ends, or the user says to wrap up or save, call save_session_summary " +
+  "with a detailed summary. Codex reads those summaries, and Claude reads the ones Codex writes. " +
+  "Never put passwords, API keys or tokens in a summary.";
+
 const server = new Server(
-  { name: "the-forge-meta-server", version: "1.4.0-Omnibus" },
-  { capabilities: { tools: { listChanged: true } } } 
+  { name: "the-forge-meta-server", version: "1.5.0-Omnibus" },
+  { capabilities: { tools: { listChanged: true } }, instructions: INSTRUCTIONS }
 );
 
 async function loadTools() {
@@ -121,7 +134,13 @@ async function loadTools() {
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   const tools = [];
   for (const [name, tool] of activeTools.entries()) {
-    tools.push({ name, description: tool.schema.description, inputSchema: tool.schema.inputSchema });
+    const entry = { name, description: tool.schema.description, inputSchema: tool.schema.inputSchema };
+    // Optional MCP tool annotations (readOnlyHint and so on). Claude Desktop uses
+    // readOnlyHint to offer "allow for all tasks" instead of asking on every call.
+    if (tool.schema.annotations && typeof tool.schema.annotations === "object") {
+      entry.annotations = tool.schema.annotations;
+    }
+    tools.push(entry);
   }
   return { tools };
 });
@@ -168,6 +187,22 @@ async function startSystem() {
   // Note: We intentionally do NOT run it immediately on boot to prevent Cowork lock collisions.
   // It will wait exactly 60 seconds before executing the first sweep.
   setInterval(runActiveSync, 60000);
+
+  // Keep the search index fresh (see index_refresh.js). Needs Python; if the indexer
+  // script is not there, nothing happens. X9_INDEX_REFRESH_HOURS=0 turns it off.
+  const indexer = path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_indexer.py");
+  if (fsSync.existsSync(indexer)) {
+    const hours = process.env.X9_INDEX_REFRESH_HOURS === undefined ? 6 : Number(process.env.X9_INDEX_REFRESH_HOURS);
+    const delay = Number(process.env.X9_INDEX_STARTUP_DELAY_MS);
+    startIndexRefresh({
+      command: process.env.X9_PYTHON || "python",
+      args: [indexer],
+      dbPath: process.env.X9_DB_PATH || path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_vault.db"),
+      intervalHours: Number.isFinite(hours) ? hours : 6,
+      startupDelayMs: Number.isFinite(delay) && delay >= 0 ? delay : 15000,
+      log: (m) => console.error(m),
+    });
+  }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

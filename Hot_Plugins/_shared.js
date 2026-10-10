@@ -11,6 +11,29 @@ import { fileURLToPath } from "url";
 // environment variable (set it in claude_desktop_config.json).
 export const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
 
+// The Codex workspace, a sibling of the Claude workspace. Claude only ever reads it.
+// Override with X9_CODEX_ROOT.
+export const CODEX_ROOT = path.resolve(
+  process.env.X9_CODEX_ROOT || path.join(path.dirname(X9_ROOT), "Codex_Workspace")
+);
+
+// Where session summaries live. Claude writes to its own folder and reads Codex's.
+export const CLAUDE_SUMMARY_DIR = path.join(X9_ROOT, "04_Session_Notes");
+export const CODEX_SUMMARY_DIR = path.join(CODEX_ROOT, "02_Outbox", "session_summaries");
+
+// Today's date on this computer (not UTC), as YYYY-MM-DD.
+export function localDate(d = new Date()) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Turn a title into a safe file name part: letters, digits and dashes only.
+export function slugify(text, maxLen = 60) {
+  const s = String(text).normalize("NFKD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, maxLen).replace(/-+$/g, "");
+  return s || "session";
+}
+
 // This folder (Hot_Plugins) and its parent (the _mcp_tools folder).
 export const HOT_PLUGINS_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const MCP_TOOLS_DIR = path.dirname(HOT_PLUGINS_DIR);

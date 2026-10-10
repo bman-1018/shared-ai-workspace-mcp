@@ -106,3 +106,12 @@ test("it refuses to start without READONLY_BRIDGE_DIR", async () => {
   const child = spawn(process.execPath, [BRIDGE], { env, stdio: "ignore" });
   assert.equal(await waitForExit(child), 1);
 });
+
+test("every bridge tool is marked read only", async () => {
+  const tools = await srv.listTools();
+  assert.equal(tools.length, 4);
+  for (const t of tools) {
+    assert.equal(t.annotations?.readOnlyHint, true, t.name);
+    assert.equal(t.annotations?.destructiveHint, false, t.name);
+  }
+});

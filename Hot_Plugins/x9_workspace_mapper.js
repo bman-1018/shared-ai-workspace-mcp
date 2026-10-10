@@ -96,6 +96,7 @@ export const toolSchema = {
     },
     required: ["category"],
   },
+  annotations: { title: "Map workspace folders", readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 };
 
 // --- ROUTE MAP ---

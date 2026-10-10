@@ -43,7 +43,9 @@ export const toolSchema = {
       is_final_chunk: { type: "boolean", description: "True if this is the last chunk (finalizes the transfer)." }
     },
     required: ["filename", "category", "chunk_data", "is_first_chunk", "is_final_chunk"]
-  }
+  },
+  // Writes files and can replace an existing file of the same name, so it is not read only.
+  annotations: { title: "Write large file in chunks", readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
 };
 
 const TEMP_DIR = path.join(HOT_PLUGINS_DIR, "_temp");

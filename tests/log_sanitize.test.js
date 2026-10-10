@@ -49,3 +49,12 @@ test("deep and wide objects do not blow up", () => {
   for (let i = 0; i < 50; i++) { cur.n = {}; cur = cur.n; }
   assert.doesNotThrow(() => sanitizeForLog(deep));
 });
+
+test("redactSecrets hides secrets without shortening the text", async () => {
+  const { redactSecrets } = await import("../the_forge/log_sanitize.js");
+  const long = "word ".repeat(1000);
+  const out = redactSecrets(`${long} sk-live-abcdefghijklmnopqrstuvwx ${long}`);
+  assert.doesNotMatch(out, /abcdefghijklmnopqrstuvwx/);
+  assert.match(out, /\[REDACTED\]/);
+  assert.ok(out.length > 9000, "must not truncate");
+});

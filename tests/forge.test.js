@@ -22,15 +22,17 @@ const HOT = path.join(TOOLS, "Hot_Plugins");
 const HISTORY = path.join(WS, "07_Chat_History");
 
 let srv;
+let initResult;
 test.before(async () => {
-  srv = startServer([path.join(TOOLS, "the_forge", "index.js")], { env: { X9_ROOT: WS } });
-  await srv.init();
+  // The Codex workspace is a sibling of the Claude one. Index refresh is off here so no Python is needed.
+  srv = startServer([path.join(TOOLS, "the_forge", "index.js")], { env: { X9_ROOT: WS, X9_INDEX_REFRESH_HOURS: "0" } });
+  initResult = await srv.init();
 });
 test.after(() => { srv?.stop(); fs.rmSync(ROOT, { recursive: true, force: true }); });
 
 test("the Forge lists its plugins and runs one", async () => {
   const names = (await srv.listTools()).map((t) => t.name).sort();
-  for (const n of ["hello_forge", "panoptic_push", "submit_code_plan", "x9_search", "x9_workspace_mapper"]) {
+  for (const n of ["hello_forge", "panoptic_push", "submit_code_plan", "x9_search", "x9_workspace_mapper", "save_session_summary", "find_sessions"]) {
     assert.ok(names.includes(n), `missing ${n}`);
   }
   const r = await srv.callTool("hello_forge", {});
@@ -87,4 +89,33 @@ test("logging can be turned off", async () => {
     await off.callTool("hello_forge", {});
     assert.ok(!fs.existsSync(path.join(ws2, "07_Chat_History")));
   } finally { off.stop(); }
+});
+
+test("the server tells the client when to use the workspace tools", () => {
+  const text = initResult.result.instructions;
+  assert.ok(text, "initialize must carry instructions");
+  for (const word of ["find_sessions", "x9_search", "save_session_summary"]) assert.match(text, new RegExp(word));
+  assert.doesNotMatch(text, /(sk-|ghp_)/);
+});
+
+test("tools are marked read only or not, so the client can skip prompts for reads", async () => {
+  const tools = Object.fromEntries((await srv.listTools()).map((t) => [t.name, t]));
+  for (const n of ["find_sessions", "x9_search", "x9_workspace_mapper", "hello_forge"]) {
+    assert.equal(tools[n].annotations?.readOnlyHint, true, n);
+  }
+  for (const n of ["save_session_summary", "panoptic_push", "submit_code_plan"]) {
+    assert.equal(tools[n].annotations?.readOnlyHint, false, n);
+  }
+  assert.equal(tools.save_session_summary.annotations.destructiveHint, false);
+});
+
+test("a summary saved through the server can be found and read back", async () => {
+  const saved = await srv.callTool("save_session_summary", { title: "Forge end to end", summary: "Saved through the real server to check that find_sessions sees it straight away." });
+  assert.equal(saved.isError, false);
+  assert.ok(fs.existsSync(path.join(WS, "04_Session_Notes")));
+  const found = await srv.callTool("find_sessions", { query: "end to end" });
+  assert.equal(found.isError, false);
+  const id = JSON.parse(found.text).sessions[0].id;
+  const full = await srv.callTool("find_sessions", { read: id });
+  assert.match(full.text, /straight away/);
 });

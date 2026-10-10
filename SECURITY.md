@@ -9,7 +9,8 @@ This project gives an AI model tools that touch real files and run code on your 
 | `the_forge` + `Hot_Plugins` | Loads and runs every `.js` file in `Hot_Plugins` as you, and logs tool calls | Anything that can write a `.js` file there can run code on your PC |
 | `panoptic_push` | Writes files into the workspace folders. The routes into `_mcp_tools` and `Claude_Plugins` are off unless you set `X9_ALLOW_PLUGIN_WRITE=1` | With that setting on, it can be used to add a plugin that runs on your PC |
 | `X9_External_Drive` (official file server) | Reads, writes and moves files in the folders you give it | If the folder list includes `_mcp_tools` or `Claude_Plugins`, for example by listing the whole workspace, Claude can add a plugin that runs on your PC. The example config lists only safe subfolders |
-| `x9_search` | Returns text from your indexed files | Whatever is indexed can be shown to the model |
+| `x9_search` | Returns text from your indexed files, including the Codex workspace if one sits next to yours | Whatever is indexed can be shown to the model. The index file holds that text in plain form |
+| `save_session_summary` / `find_sessions` | Write a summary file into `04_Session_Notes` (never overwrites); list and read summaries from the Claude and Codex summary folders | Summaries are plain text that the other agent reads. Secrets are filtered by pattern only, so a password the model writes in plain words is not caught. `find_sessions` can read only `.md` files directly inside those two folders |
 | `readonly_bridge` | Reads one folder you choose (size-limited), runs four read-only git commands | Shows the model the files in that folder. The secret filter is by file name only, and `git diff` can show the contents of tracked files |
 | `The_Observer` | Copies the chat log (`audit.jsonl`) of Claude Desktop agent-mode sessions to the drive | Plain-text copy of those conversations |
 
@@ -52,6 +53,9 @@ A security review was done in October 2026 before this repo was released. It was
 | The Forge log keeps one JSON object per line, cuts long values, hides secret-looking keys and values, and can be turned off with `X9_FORGE_LOG=off` | The old log stored full file contents and was not valid JSON |
 | The search tool is named `x9_search` | It is keyword search, not semantic search |
 | `X9_External_Drive` lists workspace subfolders, not the workspace root | The file server cannot exclude a folder, so listing the root would let Claude write a plugin |
+| Search skips `07_Chat_History` and rebuilds the index into a temporary file before swapping it in | The action log repeats earlier results and file contents; a rebuild during a search never shows a half-built index |
+| Session summaries are saved with exclusive create, a safe file name, one-line titles and secret patterns replaced | A summary can not overwrite an earlier one, escape its folder, or forge its own header |
+| Search and lookup tools declare themselves read only | Lets the client skip repeated approval for reads. It is a hint to the client, not a security control: the code still enforces what each tool can do |
 
 ### Known and accepted
 

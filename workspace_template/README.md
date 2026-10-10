@@ -30,7 +30,7 @@ Claude_Workspace\
   01_Active_Projects\         work in progress
   02_Raw_Inputs\              source material, treated as read-only
   03_Final_Outputs\           finished deliverables only
-  04_Session_Notes\           one summary per session: YYYY-MM-DD_session_summary.txt
+  04_Session_Notes\           one summary per session: YYYY-MM-DD_title.md, written by save_session_summary
   05_Claude_Code_Handoff\     briefs from chat to Claude Code: brief_<topic>_YYYY-MM-DD.md
   06_Code_Plans\              plans written by the submit_code_plan tool
   07_Chat_History\            logs and chat copies (created by the Forge and Observer, never commit)
