@@ -4,7 +4,6 @@ You can hand the setup to an AI coding agent instead of doing it by hand. Copy t
 
 ## Before you paste it
 
-- Replace `<REPO_URL>` with the address of this repository.
 - Keep your agent in a mode that asks for approval before running commands or editing files. This prompt edits your Claude Desktop config, so do not turn on auto-approve for it.
 - The agent will make a backup of your config first and show you the final JSON before saving. Read it.
 - The agent can only do what its own permissions allow. If a step fails, it should tell you rather than work around it.
@@ -12,7 +11,7 @@ You can hand the setup to an AI coding agent instead of doing it by hand. Copy t
 ## The prompt
 
 ```text
-You are helping me set up the "Shared AI Workspace MCP" project on my Windows PC so that Claude Desktop can use it. The repository is: <REPO_URL>
+You are helping me set up the "Shared AI Workspace MCP" project on my Windows PC so that Claude Desktop can use it. The repository is: https://github.com/bman-1018/shared-ai-workspace-mcp
 
 Work one step at a time. Before any step that changes something on my computer, tell me what you are about to do. If anything differs from what this prompt describes, stop and ask me. Use PowerShell syntax, not bash.
 

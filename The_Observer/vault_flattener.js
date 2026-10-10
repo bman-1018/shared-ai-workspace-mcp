@@ -1,20 +1,19 @@
 /**
  * The_Observer/vault_flattener.js
- * Version: 3.1.0 (Phantom-Proof & Strict Identity)
+ * Turns the copied Cowork chat logs (audit.jsonl) into readable markdown files in
+ * 07_Chat_History\Readable_Logs\Cowork. Unchanged logs are skipped.
  */
 
 import fs from 'fs-extra';
 import path from 'path';
 import readline from 'readline';
-import os from 'os';
 
 // Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
 const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
 const HISTORY_DIR = path.join(X9_ROOT, "07_Chat_History");
 const OUTPUT_DIR = path.join(HISTORY_DIR, "Readable_Logs");
-const CLAUDE_CODE_VAULT = path.join(process.env.USERPROFILE || os.homedir(), ".claude", "projects");
 
-async function findAuditFiles(dir, isCowork, fileList = []) {
+async function findAuditFiles(dir, fileList = []) {
     if (!await fs.pathExists(dir)) return fileList;
     try {
         const items = await fs.readdir(dir);
@@ -22,38 +21,28 @@ async function findAuditFiles(dir, isCowork, fileList = []) {
             const fullPath = path.join(dir, item);
             const stat = await fs.stat(fullPath);
             if (stat.isDirectory()) {
-                await findAuditFiles(fullPath, isCowork, fileList);
-            } else {
-                // STRICT TARGETING: Cowork MUST be exactly 'audit.jsonl'. Ignores all temp/backup files.
-                if (isCowork && item === 'audit.jsonl') {
-                    fileList.push({ path: fullPath, mtime: stat.mtimeMs });
-                } else if (!isCowork && item.endsWith('.jsonl') && !item.startsWith('.') && !item.startsWith('~')) {
-                    fileList.push({ path: fullPath, mtime: stat.mtimeMs });
-                }
+                await findAuditFiles(fullPath, fileList);
+            } else if (item === 'audit.jsonl') {
+                // Exactly 'audit.jsonl': temp and backup copies are ignored.
+                fileList.push({ path: fullPath, mtime: stat.mtimeMs });
             }
         }
-    } catch (err) {}
+    } catch (err) {
+        console.error(`[Observer] Cannot list ${dir}: ${err.message}`);
+        process.exitCode = 1;
+    }
     return fileList;
 }
 
 async function flattenEverything() {
     await fs.ensureDir(path.join(OUTPUT_DIR, "Cowork"));
-    // await fs.ensureDir(path.join(OUTPUT_DIR, "Claude_Code"));  // DISABLED 2026-03-26
 
-    // Pass 'true' to activate strict targeting for Cowork
-    const coworkFiles = await findAuditFiles(path.join(HISTORY_DIR, "Cowork"), true);
-    // DISABLED 2026-03-26 - Claude Code logs no longer flattened to X9.
-    // Raw JSONL remains on C: drive at ~/.claude/projects/ if needed.
-    // const codeFiles = await findAuditFiles(CLAUDE_CODE_VAULT, false); 
-    
-    const allFiles = [
-        ...coworkFiles.map(f => ({ ...f, type: 'Cowork' })),
-        // ...codeFiles.map(f => ({ ...f, type: 'Claude_Code' }))
-    ];
+    const coworkFiles = await findAuditFiles(path.join(HISTORY_DIR, "Cowork"));
+    const allFiles = coworkFiles.map(f => ({ ...f, type: 'Cowork' }));
 
     for (const fileObj of allFiles) {
         try {
-            // BULLETPROOF IDENTITY: Extract Anthropic's true UUID
+            // Session ID from the folder name (local_<hex>), else the start of the file name.
             let shortId = "log";
             const localMatch = fileObj.path.match(/local_[a-f0-9]+/i);
             if (localMatch) {
@@ -122,7 +111,10 @@ async function flattenEverything() {
                     await fs.writeFile(targetPath, mdContent);
                 }
             }
-        } catch (err) {}
+        } catch (err) {
+            console.error(`[Observer] Could not convert ${fileObj.path}: ${err.message}`);
+            process.exitCode = 1;
+        }
     }
 }
 

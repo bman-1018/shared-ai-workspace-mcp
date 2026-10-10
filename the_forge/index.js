@@ -38,7 +38,7 @@ try {
 }
 
 // ====================================================================
-// 1. THE FOUNDRY OBSERVER: Passive Action Logger
+// 1. ACTION LOG: one JSON line per tool call, in 07_Chat_History
 // ====================================================================
 async function logActionToX9(toolName, args, result, isError = false) {
   if (!LOG_ENABLED) return;
@@ -63,7 +63,7 @@ async function logActionToX9(toolName, args, result, isError = false) {
 }
 
 // ====================================================================
-// 2. THE FOUNDRY OBSERVER: Active Background Sync
+// 2. BACKGROUND SYNC: runs The_Observer scripts every 60 seconds
 // ====================================================================
 let syncRunning = false;
 async function runActiveSync() {
@@ -224,7 +224,7 @@ async function startSystem() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[Forge] Connected via pure stdio. Observer Middleware & Active Sync Online.");
+  console.error("[Forge] Running on stdio. Action log and background sync are on.");
 }
 
 startSystem();

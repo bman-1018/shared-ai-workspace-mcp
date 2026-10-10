@@ -1,5 +1,10 @@
 # Shared AI Workspace MCP: a persistent workspace for Claude on an external drive
 
+[![CI](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)
+![Node 20+](https://img.shields.io/badge/node-%3E%3D20-339933.svg)
+
 If you use Claude (or ChatGPT or Codex) across several projects on Windows, you know the problem: every new chat starts from zero. Notes, plans, and decisions end up scattered across chat histories you cannot search.
 
 This repo is a working setup that fixes that for Claude Desktop. It puts a workspace on an external SSD and gives Claude Desktop tools to read it, write to it, search it, and save its own chat history back into it. Because the workspace is just folders and text files, any other tool that can open a folder (Codex, an editor, a different chat app) can use the same files.
@@ -21,6 +26,27 @@ I bought an external SSD to use with Claude Desktop on Windows. In February 2026
 | `readonly_bridge` | A second MCP server that can only read one codebase folder and run `git status`, `diff`, `log -n 5` and `branch`. |
 | `The_Observer` | Scripts that copy the chat log (`audit.jsonl`) of your Claude Desktop agent-mode (Cowork) sessions to the drive and turn it into readable markdown. They do not capture regular Claude chats or ChatGPT. |
 | `x9_search_engine` | The Python indexer and query script behind `x9_search`. It is plain keyword search, not semantic search. |
+
+## How it works
+
+```mermaid
+flowchart LR
+  CD["Claude Desktop"] -- stdio --> F["the_forge<br/>(plugin host)"]
+  CD -- stdio --> B["readonly_bridge"]
+  CD -- stdio --> FS["official filesystem server<br/>(workspace subfolders only)"]
+  F -- "loads and hot-reloads" --> P["Hot_Plugins/*.js"]
+  F -- "every 60 s" --> O["The_Observer"]
+  F -- "every 6 h" --> I["x9_indexer.py"]
+  P -- "write notes and summaries" --> W[("X:\Claude_Workspace")]
+  I --> DB[("x9_vault.db<br/>SQLite FTS5")]
+  P -- "x9_search" --> DB
+  P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
+  B -- "read only" --> C[("your codebase")]
+  CO["Codex"] -- writes --> CX
+  CO -- reads --> W
+```
+
+Each server gets only the permissions it needs. The Forge runs the plugins and can write notes, but not into the folders that hold code. The read-only bridge has no write tools at all. The official filesystem server is given workspace subfolders only. Claude and Codex each write to their own workspace and only read the other's. The reasoning behind these choices, and the problems that led to them, are in [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md).
 
 ## Before you start
 
@@ -189,9 +215,15 @@ Read [SECURITY.md](SECURITY.md) before you use this. The short version:
 
 ## How this was made and checked
 
+AI tools (Claude and Codex) are part of my workflow, including an independent AI review of larger changes before they merge. [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md) describes that workflow, the design trade-offs and the problems solved along the way.
+
 A security review was done before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. The review found and fixed a path traversal in `panoptic_push`, a shell command injection in the search plugin, a path prefix bug in the read-only bridge, and vulnerable dependencies, and it added safer defaults (plugin writing off, a narrower file-server folder list, secret blocking on, size limits, log redaction). Details are in [SECURITY.md](SECURITY.md).
 
-Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated), the plugins, the read-only bridge and the log filter. They run on Linux in CI. The setup has not been run through an automated test on Windows, so please report anything that behaves differently on your machine.
+Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated on any OS), every plugin, the read-only bridge, the Observer, search and the log filter. CI runs them on every pull request on Windows and Ubuntu with Node 20 and 22, together with `npm audit` and a registry signature check. The tests use temporary folders, not Claude Desktop or a real external drive, so the full setup has not been run end to end on a clean Windows machine. Please report anything that behaves differently on yours.
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the rules plugins must follow, and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 ## License
 
