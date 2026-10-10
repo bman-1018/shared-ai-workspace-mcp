@@ -16,7 +16,8 @@ export function isFresh(dbPath, maxAgeMs, now = Date.now()) {
 }
 
 /**
- * command/args: how to run the indexer (for example python + x9_indexer.py).
+ * command/args: how to run the indexer (for example python + x9_indexer.py). command may be a
+ * function, called each time, so a Python installed later is found.
  * intervalHours: 0 turns the refresh off.
  * Returns { refreshNow, stop }.
  */
@@ -33,7 +34,7 @@ export function startIndexRefresh({ command, args, dbPath, intervalHours = 6, st
     running = true;
     try {
       await new Promise((resolve, reject) => {
-        execFile(command, args, { timeout: 10 * 60 * 1000, windowsHide: true, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+        execFile(typeof command === "function" ? command() : command, args, { timeout: 10 * 60 * 1000, windowsHide: true, maxBuffer: 1024 * 1024 }, (err, stdout) => {
           if (err) reject(err);
           else resolve(stdout);
         });

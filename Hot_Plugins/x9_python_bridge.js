@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import util from "util";
 import { MCP_TOOLS_DIR } from "./_shared.js";
+import { findPython } from "../the_forge/find_python.js";
 
 const execFilePromise = util.promisify(execFile);
 
@@ -41,8 +42,7 @@ export const toolSchema = {
 };
 
 const PYTHON_SCRIPT = path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_query.py");
-// Set X9_PYTHON in claude_desktop_config.json if "python" is not on your PATH (for example "py").
-const PYTHON_EXE = process.env.X9_PYTHON || "python";
+// Tries python, py and python3. Set X9_PYTHON in claude_desktop_config.json to choose one.
 const STALE_AFTER_HOURS = 48;
 
 function indexInfo() {
@@ -74,7 +74,7 @@ export const toolHandler = async (args) => {
   try {
     // SECURITY: execFile passes the query as a single argument and never starts a
     // shell, so cmd.exe metacharacters (& | ^ % ") in the query cannot run commands.
-    const { stdout } = await execFilePromise(PYTHON_EXE, [PYTHON_SCRIPT, query, String(limit)], {
+    const { stdout } = await execFilePromise(findPython(), [PYTHON_SCRIPT, query, String(limit)], {
       timeout: 15000,
       maxBuffer: 5 * 1024 * 1024,
       windowsHide: true,
@@ -97,6 +97,7 @@ export const toolHandler = async (args) => {
     return { status: "Success", ...info, matches: results };
 
   } catch (error) {
-    return { error: true, message: `Bridge execution failed: ${error.message}` };
+    const hint = error.code === "ENOENT" ? " Python was not found. Install Python 3.10 or newer, or set X9_PYTHON to its full path." : "";
+    return { error: true, message: `Bridge execution failed: ${error.message}.${hint}` };
   }
 };

@@ -10,6 +10,7 @@ import { execFile } from "child_process";
 import util from "util";
 import { formatLogLine } from "./log_sanitize.js";
 import { startIndexRefresh } from "./index_refresh.js";
+import { findPython } from "./find_python.js";
 
 const execFilePromise = util.promisify(execFile);
 
@@ -212,7 +213,7 @@ async function startSystem() {
     const hours = process.env.X9_INDEX_REFRESH_HOURS === undefined ? 6 : Number(process.env.X9_INDEX_REFRESH_HOURS);
     const delay = Number(process.env.X9_INDEX_STARTUP_DELAY_MS);
     startIndexRefresh({
-      command: process.env.X9_PYTHON || "python",
+      command: findPython,
       args: [indexer],
       dbPath: process.env.X9_DB_PATH || path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_vault.db"),
       intervalHours: Number.isFinite(hours) ? hours : 6,
