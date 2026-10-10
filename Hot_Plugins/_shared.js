@@ -4,6 +4,7 @@
 // as a tool. Plugins import it directly.
 // ============================================================
 
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -19,7 +20,22 @@ export const CODEX_ROOT = path.resolve(
 
 // Where session summaries live. Claude writes to its own folder and reads Codex's.
 export const CLAUDE_SUMMARY_DIR = path.join(X9_ROOT, "04_Session_Notes");
-export const CODEX_SUMMARY_DIR = path.join(CODEX_ROOT, "02_Outbox", "session_summaries");
+
+// Codex's results folder. The template calls it 02_Outbox; some workspaces use 03_Outbox.
+// Set X9_CODEX_OUTBOX to a folder name or full path to choose it. Looked up on each call,
+// so a folder created later is picked up without a restart.
+export function codexOutboxDir() {
+  const named = process.env.X9_CODEX_OUTBOX;
+  if (named) return path.resolve(CODEX_ROOT, named);
+  for (const name of ["02_Outbox", "03_Outbox"]) {
+    const p = path.join(CODEX_ROOT, name);
+    try { if (fs.statSync(p).isDirectory()) return p; } catch {}
+  }
+  return path.join(CODEX_ROOT, "02_Outbox");
+}
+export function codexSummaryDir() {
+  return path.join(codexOutboxDir(), "session_summaries");
+}
 
 // Today's date on this computer (not UTC), as YYYY-MM-DD.
 export function localDate(d = new Date()) {

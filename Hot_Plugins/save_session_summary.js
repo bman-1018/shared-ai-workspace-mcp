@@ -18,7 +18,7 @@ export const toolSchema = {
     "Call it when a substantial conversation or work session ends, when the user says to wrap up or save, " +
     "or after a major decision. Write what a person who was not there would need: what was asked, what was done, " +
     "what was decided and why, what is unfinished, and the exact names of files, folders, branches and commands involved. " +
-    "This is a summary, not a transcript: do not paste the conversation. Never include passwords, API keys or tokens. " +
+    "This is a summary, not a transcript: do not paste the conversation. Never include passwords, API keys, connection strings or tokens. " +
     "Each call creates a new file and never overwrites an earlier one.",
   inputSchema: {
     type: "object",
@@ -63,8 +63,9 @@ export function buildSummaryMarkdown({ title, summary, decisions, files, open_it
     "agent: claude",
     `date: ${date}`,
     `time: ${time}`,
-    `title: ${title}`,
-    ...(project ? [`project: ${project}`] : []),
+    // JSON strings are valid YAML, so titles like "[draft]" or "a: b" read back unchanged.
+    `title: ${JSON.stringify(title)}`,
+    ...(project ? [`project: ${JSON.stringify(project)}`] : []),
     `tags: [${tags.join(", ")}]`,
     "---",
     "",
@@ -105,7 +106,10 @@ export const toolHandler = async (args) => {
   });
 
   await fs.mkdir(CLAUDE_SUMMARY_DIR, { recursive: true });
-  const base = `${date}_${slugify(title)}`;
+  // A title with no Latin letters or digits has nothing to build a name from; use the time.
+  let slug = slugify(title);
+  if (slug === "session") slug = `session-${time.replace(":", "")}`;
+  const base = `${date}_${slug}`;
   // "wx" fails if the file exists, so an earlier summary is never overwritten.
   for (let n = 1; n <= 50; n++) {
     const filename = n === 1 ? `${base}.md` : `${base}-${n}.md`;

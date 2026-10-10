@@ -15,9 +15,19 @@ const SECRET_VALUE = [
   /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g,
   /\bBearer\s+[A-Za-z0-9._~+\/-]{16,}=*/gi,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g,
+  /\bAIza[0-9A-Za-z_-]{30,}\b/g,                                  // Google API keys
+  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g,                            // GitHub fine-grained tokens
+  /\bsh(pat|pca|ppa|pss)_[A-Fa-f0-9]{20,}\b/g,                    // Shopify
+  /\bwhsec_[A-Za-z0-9]{16,}\b/g,                                  // Stripe webhook secrets
+  /\b(hf|npm)_[A-Za-z0-9]{30,}\b/g,                               // Hugging Face, npm
+  /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, // JSON web tokens
+  /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@\/]+:[^\s@\/]+@[^\s]+/gi,           // user:password@ in a URL
+  // "password: hunter2", "api key = abc123..." (the value needs a digit or symbol, so plain words survive)
+  /\b(pass(word|wd)?|pwd|secret|token|api[ _-]?key|access[ _-]?key)\b\s*[:=]\s*(?=\S*[\d_!@#$%^&*\/+=-])[^\s,;"')]{6,}/gi,
 ];
 
-// Replaces strings that look like API keys, tokens or private keys. Does not shorten the text.
+// Replaces strings that look like API keys, tokens, connection strings or private keys.
+// Does not shorten the text. Best effort: it recognizes common shapes, not every secret.
 export function redactSecrets(s) {
   let out = String(s);
   for (const re of SECRET_VALUE) out = out.replace(re, "[REDACTED]");

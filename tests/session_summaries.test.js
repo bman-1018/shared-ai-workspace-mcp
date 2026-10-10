@@ -38,7 +38,7 @@ test("saving writes a summary file with front matter and sections", async () => 
   const text = fs.readFileSync(r.path, "utf8");
   assert.match(text, /^---\ntype: session_summary\nagent: claude\n/);
   assert.match(text, /tags: \[search-index, forge\]/);
-  assert.match(text, /project: X9/);
+  assert.match(text, /project: "X9"/);
   for (const h of ["## Summary", "## Decisions", "## Files and links", "## Open items", "## Next steps"]) assert.ok(text.includes(h), h);
 });
 
@@ -137,7 +137,7 @@ test("find_sessions reads one summary by id and refuses anything else", async ()
 test("find_sessions rejects bad arguments and explains a missing folder", async () => {
   assert.equal((await find.toolHandler({ agent: "gemini" })).error, true);
   assert.equal((await find.toolHandler({ since: "yesterday" })).error, true);
-  fs.rmSync(CODEX_DIR, { recursive: true, force: true });
+  fs.rmSync(path.join(CODEX, "02_Outbox"), { recursive: true, force: true });
   const r = await find.toolHandler({ query: "search" });
   assert.equal(r.status, "Success");
   assert.match(r.folders.codex, /not found/);

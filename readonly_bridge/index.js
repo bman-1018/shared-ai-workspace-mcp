@@ -131,8 +131,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     }
   ].map((t) => ({
     ...t,
-    // Every tool here only reads. Clients such as Claude Desktop use readOnlyHint to
-    // offer "allow for all tasks" instead of asking on every call.
+    // Every tool here only reads. This is a hint to the client (for example, so it can
+    // group read-only tools in its permission settings); the code enforces it, not the hint.
     annotations: { title: t.name, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   })),
 }));

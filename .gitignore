@@ -4,6 +4,7 @@ node_modules/
 # Search index and anything built from your files. It contains the text of your documents.
 *.db
 *.db-journal
+*.db.building.*
 *.sqlite
 
 # Python

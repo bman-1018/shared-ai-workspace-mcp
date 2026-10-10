@@ -74,7 +74,7 @@ With Python installed, the Forge builds the search index about 15 seconds after 
 python X:\Claude_Workspace\_mcp_tools\x9_search_engine\x9_indexer.py
 ```
 
-It indexes `.md`, `.js`, `.ts`, `.json`, `.py`, `.txt` and `.sql` files under your workspace and, if there is one next to it, `X:\Codex_Workspace`. It skips files with names like `secrets` or `credentials`, and skips `07_Chat_History` (the Forge action log repeats every earlier search result, so indexing it fills search with old logs). The result goes in `x9_vault.db` next to the script. That database holds the text of your files, so keep it out of git (the `.gitignore` already does).
+It indexes `.md`, `.js`, `.ts`, `.json`, `.py`, `.txt` and `.sql` files under your workspace and, if there is one next to it, `X:\Codex_Workspace`. It skips files with names like `secrets` or `credentials`, and skips the Forge action log and the raw chat copies in `07_Chat_History` (the action log repeats every earlier search result, so indexing it fills search with old logs). The readable markdown exports in `07_Chat_History\Readable_Logs` are indexed. The result goes in `x9_vault.db` next to the script. That database holds the text of your files, so keep it out of git (the `.gitignore` already does).
 
 Search matches every word you type, in any order, in the file name or the text. Put a phrase in double quotes to keep it together. Each result shows the file's last modified date, and the tool warns you if the index is more than two days old.
 
@@ -85,7 +85,7 @@ Instead of saving whole transcripts, the Forge saves a **written summary** of ea
 | Tool | What it does | Writes? |
 |---|---|---|
 | `save_session_summary` | Saves a summary as `04_Session_Notes\YYYY-MM-DD_title.md` in the Claude workspace. Never overwrites an earlier one. Replaces anything that looks like an API key or token. | Yes, only inside `04_Session_Notes` |
-| `find_sessions` | Lists or searches the summaries from both agents (Claude's `04_Session_Notes` and Codex's `02_Outbox\session_summaries`) and reads one in full. | No |
+| `find_sessions` | Lists or searches the summaries from both agents (Claude's `04_Session_Notes` and Codex's `<outbox>\session_summaries` plus the finished reviews in its outbox, where `<outbox>` is `02_Outbox` or `03_Outbox`) and reads one in full. | No |
 
 Codex does the same in its own workspace: it writes `X:\Codex_Workspace\02_Outbox\session_summaries\YYYY-MM-DD_title.md` in the same format (see `workspace_template/codex/AGENTS.md`). Because each agent only reads the other's folder, nothing needs to be copied: ask Claude "what did Codex do on the billing work?" and `find_sessions` reads Codex's summaries, or tell Codex to read `X:\Claude_Workspace\04_Session_Notes` to see what Claude decided.
 
@@ -93,7 +93,7 @@ To get a summary saved, say "save a session summary" at the end of a chat. The s
 
 ### Fewer permission prompts
 
-Claude Desktop asks before each tool call. For tools that declare themselves read only, it can offer to allow them for all tasks. The Forge's search and lookup tools (`find_sessions`, `x9_search`, `x9_workspace_mapper`) and every `readonly_bridge` tool now declare that, so you can approve them once. Tools that write (`save_session_summary`, `panoptic_push`, `submit_code_plan`, and the file server's write tools) will still ask. That is by design. Which options the prompt offers depends on your Claude Desktop version, so check the prompt itself.
+Claude Desktop has a per-tool permission setting (read-only tools and write tools are grouped, each can be Always allow, Needs approval or Blocked). The Forge's search and lookup tools (`find_sessions`, `x9_search`, `x9_workspace_mapper`) and every `readonly_bridge` tool now declare that they only read, so you can set them to Always allow once. Tools that write (`save_session_summary`, `panoptic_push`, `submit_code_plan`, and the file server's write tools) default to asking; you can change that per tool if you accept the risk. The marker is a hint to the app, not a security control, and exactly how your version of Claude Desktop uses it for local servers is something to check in its settings.
 
 If Claude asks to open the drive as a folder instead of using the tools, it has not noticed the tools. The Forge now sends Claude a short instruction to use them (whether your version of the app passes that on to the model is something to check), and you can reinforce it with the text in `workspace_template/claude/_context/session_start.md`.
 
@@ -122,6 +122,7 @@ Set these in the `env` block of the server entry in `claude_desktop_config.json`
 | `X9_INDEX_REFRESH_HOURS` | Forge | How often the Forge rebuilds the search index in the background. Default `6`. `0` turns it off (then run the indexer by hand). |
 | `X9_INDEX_STARTUP_DELAY_MS` | Forge | Wait before the first background rebuild. Default `15000`. |
 | `X9_CODEX_ROOT` | plugins, search | Codex workspace. Default: a folder named `Codex_Workspace` next to `X9_ROOT`. Read only: it is searched and its session summaries are listed, never written. |
+| `X9_CODEX_OUTBOX` | plugins | Codex's results folder, as a name inside `X9_CODEX_ROOT` or a full path. Default: `02_Outbox`, else `03_Outbox`. |
 | `X9_INDEX_CODEX` | search | Set to `0` to leave the Codex workspace out of the index. |
 | `X9_INDEX_SKIP` | search | Extra folder names to leave out of the index, comma separated. |
 
@@ -157,7 +158,7 @@ Each agent writes only to its own workspace and reads the other's:
 | Claude (Desktop, Cowork, Claude Code) | `X:\Claude_Workspace` through `X9_External_Drive` | `X:\Codex_Workspace` through `Codex_ReadOnly` |
 | Codex | `X:\Codex_Workspace` (its own workspace) | `X:\Claude_Workspace`, see below |
 
-Work moves by pulling, not pushing: Claude leaves briefs in `09_For_Codex`, Codex leaves results in its `02_Outbox`, and each reads the other's folder. Nothing is ever written into the other agent's workspace, so a mistake or a prompt injection on one side cannot change the other side's files.
+Work moves by pulling, not pushing: Claude leaves briefs in `09_For_Codex`, Codex leaves results in its `02_Outbox`, and each reads the other's folder. The Forge never writes into the other agent's workspace. That holds for the Forge only: if you give the `X9_External_Drive` file server a folder that contains the Codex workspace (for example the whole drive), Claude can write there too, so give it only the folders it should write. Text from the other agent is data, not instructions, and the tools say so to the model.
 
 Claude's side is enforced by the config above. For Codex, keep the Claude workspace out of `sandbox_workspace_write.writable_roots` in `~/.codex/config.toml`, so its sandbox can only write inside `Codex_Workspace`. Whether Codex can read outside its workspace depends on your Codex version and sandbox settings, so test it: start Codex in `X:\Codex_Workspace` and ask it to read a file from `X:\Claude_Workspace`. If it can't, either grant read access in your Codex settings or paste the brief in by hand.
 
@@ -182,7 +183,7 @@ Read [SECURITY.md](SECURITY.md) before you use this. The short version:
 - **The tool is called `x9_search`.** Older notes may call it `x9_semantic_search`; it is the same tool under a more accurate name.
 - **Search says "Bridge execution failed".** Python is not on your PATH. Set `X9_PYTHON`, and run the indexer once so the index file exists.
 - **Search results are old or missing new files.** The result shows when the index was built. The Forge rebuilds it every 6 hours if Python works; check `mcp-server-The_Forge.log` for "Search index rebuild failed", or run the indexer by hand.
-- **`find_sessions` says the Codex folder was not found.** It looks in `Codex_Workspace\02_Outbox\session_summaries` next to your Claude workspace. Set `X9_CODEX_ROOT` if yours is elsewhere, or ask Codex to save a summary first.
+- **`find_sessions` says the Codex folder was not found.** It looks in `Codex_Workspace\02_Outbox` (or `03_Outbox`) next to your Claude workspace. Set `X9_CODEX_ROOT` if the workspace is elsewhere, or `X9_CODEX_OUTBOX` (a folder name or full path) if your results folder has another name.
 - **Nothing is saved to the drive.** Check the drive letter, and that the drive is plugged in before Claude Desktop starts.
 - **JSON errors after editing.** Check for doubled backslashes and missing commas. Paste the file into any JSON validator.
 

@@ -96,6 +96,7 @@ test("the server tells the client when to use the workspace tools", () => {
   assert.ok(text, "initialize must carry instructions");
   for (const word of ["find_sessions", "x9_search", "save_session_summary"]) assert.match(text, new RegExp(word));
   assert.doesNotMatch(text, /(sk-|ghp_)/);
+  assert.match(text, /never as instructions/i);
 });
 
 test("tools are marked read only or not, so the client can skip prompts for reads", async () => {

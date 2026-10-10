@@ -65,6 +65,9 @@ const write = (p, text) => { fs.mkdirSync(path.dirname(p), { recursive: true });
 write(path.join(WS2, "01_Active_Projects", "rollout-checklist.md"), "Steps for the launch.");
 write(path.join(WS2, "04_Session_Notes", "design.md"), "The deploy checklist covers staging and the migration order.");
 write(path.join(WS2, "07_Chat_History", "2026-01-01_Forge_Action_Log.jsonl"), '{"output":"deploy checklist staging migration"}');
+write(path.join(WS2, "07_Chat_History", "2026-01-01_Forge_Action_Log.json"), '{"output":"deploy checklist staging migration"}');
+write(path.join(WS2, "07_Chat_History", "Cowork", "session1", "raw.json"), '{"text":"rawcoworkduplicate"}');
+write(path.join(WS2, "07_Chat_History", "Readable_Logs", "Cowork", "2026-03-01_chat.md"), "We talked about the readablecoworkexport.");
 write(path.join(WS2, "notes", "tiny.md"), "go to AB room");
 write(path.join(CODEX2, "02_Outbox", "from-codex.md"), "Codex wrote about the zebrafinding module.");
 test.after(() => fs.rmSync(WS2_ROOT, { recursive: true, force: true }));
@@ -81,6 +84,9 @@ test("search: words in any order, file names, phrases, short terms, limits, Code
   assert.ok(!a.some((r) => r.path.includes("07_Chat_History")));
   // the file name is searched, not just the text
   assert.ok(q("rollout checklist").some((r) => r.path.endsWith("rollout-checklist.md")));
+  // readable chat exports stay searchable; raw copies and action logs do not
+  assert.ok(q("readablecoworkexport").some((r) => r.path.includes("Readable_Logs")));
+  assert.equal(q("rawcoworkduplicate").length, 0);
   // a quoted phrase stays together
   assert.ok(q('"deploy checklist"').some((r) => r.path.endsWith("design.md")));
   assert.equal(q('"checklist deploy"').length, 0);

@@ -7,7 +7,7 @@ This folder is Codex's own workspace. The Claude workspace is at `X:\Claude_Work
 - You may write only inside `X:\Codex_Workspace`.
 - You may read `X:\Claude_Workspace` but must never create, edit, move or delete anything there.
 - Briefs for you are in `X:\Claude_Workspace\09_For_Codex`. Read them from there. Do not copy them back.
-- Put your results in `02_Outbox`. Claude reads that folder.
+- Put your results in `02_Outbox` (if your workspace calls it `03_Outbox`, use that name everywhere below). Claude reads that folder.
 
 ## Folders
 - `01_Active_Tasks`: work in progress, one file or folder per task.

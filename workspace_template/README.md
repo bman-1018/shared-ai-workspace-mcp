@@ -80,7 +80,7 @@ Codex_Workspace\
 Each agent writes only to its own workspace and reads the other's:
 
 - Claude writes briefs to `Claude_Workspace\09_For_Codex`. Codex reads them there.
-- Codex writes results to `Codex_Workspace\02_Outbox`. Claude reads them through the read-only `Codex_ReadOnly` server.
+- Codex writes results to `Codex_Workspace\02_Outbox`. Claude reads them through the read-only `Codex_ReadOnly` server (or the Forge's `find_sessions`).
 
 Neither agent can change the other's files, so a mistake or a prompt injection on one side stays on that side. See the main README for the config and for the Codex sandbox setting that keeps it this way.
 
