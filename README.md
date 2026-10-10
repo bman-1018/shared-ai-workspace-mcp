@@ -163,7 +163,7 @@ Claude's side is enforced by the config above. For Codex, keep the Claude worksp
 
 ## Adding your own tool
 
-Drop a `.js` file into `Hot_Plugins`. It must export `toolName`, `toolSchema` and `toolHandler` (see `hello_forge.js`). The Forge picks it up within a couple of seconds. Files that start with `_` are ignored, which is how `_shared.js` can hold helper code. Read the security notes below first, because anything in that folder runs on your computer.
+Drop a `.js` file into `Hot_Plugins`. It must export `toolName`, `toolSchema` and `toolHandler` (see `hello_forge.js`). The Forge picks it up within a couple of seconds. Files that start with `_` are ignored, which is how `_shared.js` can hold helper code. To mark a plugin read only without editing it, add `Hot_Plugins/_annotations.json`, for example `{"my_tool": {"readOnlyHint": true}}`; a plugin's own `annotations` take priority. Read the security notes below first, because anything in that folder runs on your computer.
 
 ## Security
 

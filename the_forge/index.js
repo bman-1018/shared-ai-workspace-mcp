@@ -131,15 +131,29 @@ async function loadTools() {
   }
 }
 
+// Optional Hot_Plugins/_annotations.json: { "tool_name": { "readOnlyHint": true } }.
+// Lets you mark a plugin read only without editing the plugin. A plugin's own
+// annotations win. Read on every tools/list, so changes apply without a restart.
+async function loadAnnotationOverrides() {
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(HOT_DIR, "_annotations.json"), "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const overrides = await loadAnnotationOverrides();
   const tools = [];
   for (const [name, tool] of activeTools.entries()) {
     const entry = { name, description: tool.schema.description, inputSchema: tool.schema.inputSchema };
     // Optional MCP tool annotations (readOnlyHint and so on). Claude Desktop uses
     // readOnlyHint to offer "allow for all tasks" instead of asking on every call.
-    if (tool.schema.annotations && typeof tool.schema.annotations === "object") {
-      entry.annotations = tool.schema.annotations;
-    }
+    const own = tool.schema.annotations;
+    const fallback = Object.hasOwn(overrides, name) ? overrides[name] : undefined;
+    const chosen = own && typeof own === "object" ? own : fallback;
+    if (chosen && typeof chosen === "object" && !Array.isArray(chosen)) entry.annotations = chosen;
     tools.push(entry);
   }
   return { tools };

@@ -119,3 +119,36 @@ test("a summary saved through the server can be found and read back", async () =
   const full = await srv.callTool("find_sessions", { read: id });
   assert.match(full.text, /straight away/);
 });
+
+test("_annotations.json marks plugins read only without editing them, and a plugin's own annotations win", async () => {
+  const plugin = path.join(HOT, "zz_plain.js");
+  fs.writeFileSync(plugin, `export const toolName = "zz_plain";
+export const toolSchema = { description: "plain", inputSchema: { type: "object", properties: {}, required: [] } };
+export const toolHandler = async () => ({ ok: true });
+`);
+  // Poll instead of waiting for a notification: an earlier test may have left one queued.
+  const until = async (pred, ms = 15000) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { if (pred(await srv.listTools())) return; await new Promise((r) => setTimeout(r, 200)); }
+    throw new Error("timed out waiting for the tool list to change");
+  };
+  await until((t) => t.some((x) => x.name === "zz_plain"));
+  const plain = (await srv.listTools()).find((t) => t.name === "zz_plain");
+  assert.equal(plain.annotations, undefined);
+
+  fs.writeFileSync(path.join(HOT, "_annotations.json"), JSON.stringify({
+    zz_plain: { readOnlyHint: true },
+    find_sessions: { readOnlyHint: false },   // ignored: the plugin declares its own
+    constructor: { readOnlyHint: true },
+  }));
+  const tools = await srv.listTools();
+  assert.equal(tools.find((t) => t.name === "zz_plain").annotations.readOnlyHint, true);
+  assert.equal(tools.find((t) => t.name === "find_sessions").annotations.readOnlyHint, true);
+
+  fs.writeFileSync(path.join(HOT, "_annotations.json"), "not json");
+  assert.ok((await srv.listTools()).length > 0, "a broken file must not break tools/list");
+
+  fs.unlinkSync(path.join(HOT, "_annotations.json"));
+  fs.unlinkSync(plugin);
+  await until((t) => !t.some((x) => x.name === "zz_plain"));
+});
