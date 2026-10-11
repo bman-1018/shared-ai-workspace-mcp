@@ -17,6 +17,7 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - The Forge action log and raw chat copies are no longer indexed; readable chat exports are.
 - Tool descriptions and log messages use plain language (no behavior change; tool names are unchanged).
 - The Observer scripts report copy and conversion errors to the Forge log instead of ignoring them.
+- Docs say plainly that the project does not connect Codex or web-based clients, how a local Codex can reach the drive, and why remote access through a tunnel is not supported.
 
 ### Removed
 - Dead, commented-out Claude Code sync code from the Observer.

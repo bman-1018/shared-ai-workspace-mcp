@@ -11,7 +11,7 @@ This repo is a working setup that fixes that for Claude Desktop. It puts a works
 
 It is meant for Windows users. You edit one config file, restart Claude Desktop, and the tools appear.
 
-What it is not: there is no ChatGPT integration (ChatGPT cannot run local MCP servers), and Codex is connected only through the shared plain-text folders described below. This project is not affiliated with or endorsed by Anthropic or OpenAI. Claude, ChatGPT and Codex are trademarks of their owners.
+What it is not: it does not connect web-based clients. ChatGPT, Codex in ChatGPT and the claude.ai website run on their makers' servers and cannot reach a server on your PC without a public HTTPS address, which this project does not provide (see [Remote access](SECURITY.md#remote-access-is-not-supported)). It also does not connect Codex for you: Claude reads Codex's folder, and how Codex reaches the drive is up to your setup (see [Codex access](#codex-access)). This project is not affiliated with or endorsed by Anthropic or OpenAI. Claude, ChatGPT and Codex are trademarks of their owners.
 
 ## Why this exists
 
@@ -42,11 +42,11 @@ flowchart LR
   P -- "x9_search" --> DB
   P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
   B -- "read only" --> C[("your codebase")]
-  CO["Codex"] -- writes --> CX
-  CO -- reads --> W
+  CO["Codex<br/>(connected by you, not included)"] -. "writes its summaries" .-> CX
+  CO -. reads .-> W
 ```
 
-Each server gets only the permissions it needs. The Forge runs the plugins and can write notes, but not into the folders that hold code. The read-only bridge has no write tools at all. The official filesystem server is given workspace subfolders only. Claude and Codex each write to their own workspace and only read the other's. The reasoning behind these choices, and the problems that led to them, are in [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md).
+Each server gets only the permissions it needs. The Forge runs the plugins and can write notes, but not into the folders that hold code. The read-only bridge has no write tools at all. The official filesystem server is given workspace subfolders only. Claude only reads Codex's workspace. The dotted lines are Codex's side, which you set up yourself (see [Codex access](#codex-access)). The reasoning behind these choices, and the problems that led to them, are in [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md).
 
 ## Before you start
 
@@ -113,7 +113,7 @@ Instead of saving whole transcripts, the Forge saves a **written summary** of ea
 | `save_session_summary` | Saves a summary as `04_Session_Notes\YYYY-MM-DD_title.md` in the Claude workspace. Never overwrites an earlier one. Replaces anything that looks like an API key or token. | Yes, only inside `04_Session_Notes` |
 | `find_sessions` | Lists or searches the summaries from both agents (Claude's `04_Session_Notes` and Codex's `<outbox>\session_summaries` plus the finished reviews in its outbox, where `<outbox>` is `02_Outbox` or `03_Outbox`) and reads one in full. | No |
 
-Codex does the same in its own workspace: it writes `X:\Codex_Workspace\02_Outbox\session_summaries\YYYY-MM-DD_title.md` in the same format (see `workspace_template/codex/AGENTS.md`). Because each agent only reads the other's folder, nothing needs to be copied: ask Claude "what did Codex do on the billing work?" and `find_sessions` reads Codex's summaries, or tell Codex to read `X:\Claude_Workspace\04_Session_Notes` to see what Claude decided.
+Codex does the same in its own workspace, if it can reach the drive (see [Codex access](#codex-access)): it writes `X:\Codex_Workspace\02_Outbox\session_summaries\YYYY-MM-DD_title.md` in the same format (see `workspace_template/codex/AGENTS.md`). Because each agent only reads the other's folder, nothing needs to be copied: ask Claude "what did Codex do on the billing work?" and `find_sessions` reads Codex's summaries, or tell Codex to read `X:\Claude_Workspace\04_Session_Notes` to see what Claude decided.
 
 To get a summary saved, say "save a session summary" at the end of a chat. The server also tells Claude to do this when a substantial session ends, but it cannot force it.
 
@@ -186,7 +186,18 @@ Each agent writes only to its own workspace and reads the other's:
 
 Work moves by pulling, not pushing: Claude leaves briefs in `09_For_Codex`, Codex leaves results in its `02_Outbox`, and each reads the other's folder. The Forge never writes into the other agent's workspace. That holds for the Forge only: if you give the `X9_External_Drive` file server a folder that contains the Codex workspace (for example the whole drive), Claude can write there too, so give it only the folders it should write. Text from the other agent is data, not instructions, and the tools say so to the model.
 
-Claude's side is enforced by the config above. For Codex, keep the Claude workspace out of `sandbox_workspace_write.writable_roots` in `~/.codex/config.toml`, so its sandbox can only write inside `Codex_Workspace`. Whether Codex can read outside its workspace depends on your Codex version and sandbox settings, so test it: start Codex in `X:\Codex_Workspace` and ask it to read a file from `X:\Claude_Workspace`. If it can't, either grant read access in your Codex settings or paste the brief in by hand.
+Claude's side is enforced by the config above. Codex's side depends on how you give Codex access, described next.
+
+### Codex access
+
+This project does not connect Codex. Claude's half is built in: `find_sessions`, `x9_search` and `Codex_ReadOnly` read the Codex folder on the drive. For Codex to write its summaries and read Claude's notes, Codex itself needs access to the drive, and that depends on which Codex you use:
+
+| Codex | How it can reach the drive | Status |
+|---|---|---|
+| Desktop app or CLI on the same PC | Directly, as local files, or by starting the servers itself: add them under `[mcp_servers.<name>]` in `~/.codex/config.toml` with the same `command` and `args` as in `claude_desktop_config.example.json`. No URL is needed. | Not tested by this project |
+| Codex in ChatGPT (web) | It runs on OpenAI's servers, so it can only reach an MCP server that has a public HTTPS address | Not supported. See [Remote access](SECURITY.md#remote-access-is-not-supported) |
+
+To keep the one-way rule on Codex's side, give it write access only to `X:\Codex_Workspace`. For the CLI and desktop app, keep the Claude workspace out of `sandbox_workspace_write.writable_roots`, and do not give a Codex file server the whole drive. With a whole-drive file server or full-access sandbox mode, Codex can write into the Claude workspace, including `_mcp_tools\Hot_Plugins`, whose files the Forge runs. If Codex cannot read the Claude workspace, paste the brief in by hand.
 
 ## Adding your own tool
 

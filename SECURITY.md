@@ -68,6 +68,18 @@ A security review was done in October 2026 before this repo was released. It was
 - The Forge reloads plugins by importing a new copy of the file each time. Many reloads in one long session use more memory until you restart Claude Desktop.
 - The Forge and bridge are plain Node programs and may run elsewhere, but only Windows is supported and tested for the Observer and the setup instructions.
 
+## Remote access is not supported
+
+The servers talk to a client on the same PC over stdio. Web-based clients (ChatGPT, Codex in ChatGPT, the claude.ai website) run on their makers' servers, so they can only reach an MCP server at a public HTTPS address, for example through a tunnel such as ngrok or Cloudflare Tunnel. This project does not include or support that, because none of the servers has authentication: anyone who learns the address gets the same access as the tool.
+
+| Exposed server | What a stranger with the address could do |
+|---|---|
+| The Forge | Call every plugin: write files with `panoptic_push`, read your workspace through search and summaries |
+| A file server (`X9_External_Drive` or similar) | Read, write and move files in its folders. If those include `_mcp_tools`, add a plugin that the Forge then runs on your PC |
+| `readonly_bridge` | Read the shared folder and its git history |
+
+Free tunnel addresses are often fixed and easy to share by accident. If you run a tunnel anyway, expose only `readonly_bridge`, put authentication in front of it, keep it running only while you use it, and never expose the Forge or a write-capable file server.
+
 ## Reporting a problem
 
 Please open a private security advisory on this repository (Security tab, "Report a vulnerability") instead of a public issue.

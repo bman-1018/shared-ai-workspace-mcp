@@ -28,8 +28,8 @@ flowchart LR
   P -- "x9_search" --> DB
   P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
   B -- "read only" --> C[("your codebase")]
-  CO["Codex"] -- writes --> CX
-  CO -- reads --> W
+  CO["Codex<br/>(connected by you, not included)"] -. "writes its summaries" .-> CX
+  CO -. reads .-> W
 ```
 
 Three separate MCP servers, each with the smallest set of permissions it needs:
@@ -50,7 +50,7 @@ Three separate MCP servers, each with the smallest set of permissions it needs:
 
 **Summaries, not transcripts, for sharing context.** Full transcripts are large, noisy, and full of things that should not be kept (pasted secrets, tool output). `save_session_summary` asks the model for a structured summary: what was asked, what was decided and why, exact file and branch names, what is unfinished. That is what the next session, or Codex, actually needs.
 
-**Pull, never push, between agents.** Claude writes only to its workspace and reads Codex's. Codex does the reverse. Neither writes into the other's folder, so a mistake or a prompt injection on one side cannot change the other side's files. Text from the other agent is labelled as data, not instructions, in the tool descriptions and the server instructions.
+**Pull, never push, between agents.** Claude writes only to its workspace and reads Codex's. Codex should do the reverse. If neither writes into the other's folder, a mistake or a prompt injection on one side cannot change the other side's files. Claude's half of that rule is enforced by the config; Codex's half depends on how the user gives Codex access, so the README spells out the settings that keep it. Text from the other agent is labelled as data, not instructions, in the tool descriptions and the server instructions.
 
 **Safe by default, opt in to risk.** Plugin writing is off unless `X9_ALLOW_PLUGIN_WRITE=1`. Secret-file blocking in the bridge is on unless turned off. Each of these was a choice between convenience and safety, and I kept the convenient option available behind a setting with the risk explained next to it.
 
@@ -115,4 +115,4 @@ AI tools (Claude and Codex, and Gemini during the early troubleshooting) are par
 
 - Capture Codex and Claude Code sessions in the Observer, with a text-only mode that drops tool output and injected context. The Codex log format is already mapped; Claude Code's log location still needs to be confirmed.
 - Run the full setup end to end on a clean Windows machine, not only the test suite.
-- If remote access is ever added, it needs authentication, a read-only codebase side and no exposure of the Forge. Without all three it would undo the security model above.
+- Support web clients properly. ChatGPT, Codex in ChatGPT and the claude.ai website can only reach an MCP server at a public HTTPS address. In my own setup I used ngrok tunnels for that, but these servers have no authentication, so a tunnel gives anyone with the URL the same access the tool has. That is why tunnels are not part of the project. A supported remote mode needs authentication built into the server, read-only tools by default, and no exposure of the Forge or a write-capable file server.
