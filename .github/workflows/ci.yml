@@ -29,7 +29,7 @@ jobs:
         run: npm run install:all
       # numpy only: the semantic search tests use a stand-in embedder, so no model download.
       - name: Install numpy for the semantic search tests
-        run: python -m pip install --only-binary=:all: numpy==2.5.3
+        run: "python -m pip install --only-binary=:all: numpy==2.5.3"
       - name: Run tests
         run: npm test
 
