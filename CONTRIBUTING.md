@@ -10,7 +10,7 @@ Thanks for taking a look. Bug reports, fixes for Windows setups that behave diff
 
 ## Development setup
 
-You need Node.js 20 or newer. Python 3.10 or newer is optional; without it the search tests are skipped. The semantic search tests also need `numpy` (they use a stand-in embedder, so no model is downloaded). With `x9_search_engine/.venv` set up as in the README, one more test runs against the real model.
+You need Node.js 22 or newer (24 recommended). Python 3.10 or newer is optional; without it the search tests are skipped. The semantic search tests also need `numpy` (they use a stand-in embedder, so no model is downloaded). With `x9_search_engine/.venv` set up as in the README, one more test runs against the real model.
 
 ```
 git clone https://github.com/bman-1018/shared-ai-workspace-mcp.git
@@ -19,7 +19,7 @@ npm run install:all
 npm test
 ```
 
-The tests use temporary folders. They do not need an external drive or Claude Desktop, and they run on Windows and Linux. CI runs them on Windows and Ubuntu with Node 20 and 22, plus `npm audit` and a registry signature check.
+The tests use temporary folders. They do not need an external drive or Claude Desktop, and they run on Windows and Linux. CI runs them on Windows and Ubuntu with Node 22 and 24, plus `npm audit` and a registry signature check.
 
 ## Project layout
 

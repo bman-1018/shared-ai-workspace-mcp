@@ -3,7 +3,7 @@
 [![CI](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)
-![Node 20+](https://img.shields.io/badge/node-%3E%3D20-339933.svg)
+![Node 22+](https://img.shields.io/badge/node-%3E%3D22-339933.svg)
 
 If you use Claude (or ChatGPT or Codex) across several projects on Windows, you know the problem: every new chat starts from zero. Notes, plans, and decisions end up scattered across chat histories you cannot search.
 
@@ -52,7 +52,7 @@ Each server gets only the permissions it needs. The Forge runs the plugins and c
 
 - Windows 10 or 11
 - An external drive, assigned the drive letter **X:** (instructions below). Any letter works if you change it in the config.
-- [Node.js](https://nodejs.org) 20 or newer (the LTS version is fine)
+- [Node.js](https://nodejs.org) 22 or newer (the current LTS, 24, is recommended)
 - [Python](https://www.python.org) 3.10 or newer, added to PATH (only needed for search; it needs a SQLite build with FTS5 trigram support, which current Python releases include)
 - [Git](https://git-scm.com), only if you want the git tools in the read-only bridge
 - Claude Desktop
@@ -251,7 +251,7 @@ AI tools (Claude and Codex) are part of my workflow, including an independent AI
 
 A security review was done before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. The review found and fixed a path traversal in `panoptic_push`, a shell command injection in the search plugin, a path prefix bug in the read-only bridge, and vulnerable dependencies, and it added safer defaults (plugin writing off, a narrower file-server folder list, secret blocking on, size limits, log redaction). Details are in [SECURITY.md](SECURITY.md).
 
-Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated on any OS), every plugin, the read-only bridge, the Observer, search and the log filter. CI runs them on every pull request on Windows and Ubuntu with Node 20 and 22, together with `npm audit` and a registry signature check. The tests use temporary folders, not Claude Desktop or a real external drive, so the full setup has not been run end to end on a clean Windows machine. Please report anything that behaves differently on yours.
+Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated on any OS), every plugin, the read-only bridge, the Observer, search and the log filter. CI runs them on every pull request on Windows and Ubuntu with Node 22 and 24, together with `npm audit` and a registry signature check. The tests use temporary folders, not Claude Desktop or a real external drive, so the full setup has not been run end to end on a clean Windows machine. Please report anything that behaves differently on yours.
 
 ## Contributing
 

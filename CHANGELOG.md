@@ -20,6 +20,8 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - The Observer scripts report copy and conversion errors to the Forge log instead of ignoring them.
 - Docs say plainly that the project does not connect Codex or web-based clients, how a local Codex can reach the drive, and why remote access through a tunnel is not supported.
 
+- Node.js 22 or newer is required (Node 20 reached end of life in April 2026); CI tests Node 22 and 24.
+
 ### Removed
 - Dead, commented-out Claude Code sync code from the Observer.
 

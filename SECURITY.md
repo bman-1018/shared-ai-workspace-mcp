@@ -26,7 +26,7 @@ This project gives an AI model tools that touch real files and run code on your 
 
 ## Review history
 
-A security review was done in October 2026 before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. It covered all source files, the dependency lockfiles, and a search for secrets and personal data. No credentials were found. The fixes were first tested on Linux with Windows path rules simulated. Since then, CI runs the full test suite on Windows and Ubuntu (Node 20 and 22) for every pull request. Those tests use temporary folders, not Claude Desktop or a real external drive.
+A security review was done in October 2026 before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. It covered all source files, the dependency lockfiles, and a search for secrets and personal data. No credentials were found. The fixes were first tested on Linux with Windows path rules simulated. Since then, CI runs the full test suite on Windows and Ubuntu (Node 22 and 24) for every pull request. Those tests use temporary folders, not Claude Desktop or a real external drive.
 
 ### Fixed
 
