@@ -117,7 +117,9 @@ def build(docs, db_path, budget_seconds=0, log=print):
 
     # Newest files first, so the most recent work becomes searchable soonest.
     pending.sort(key=lambda p: p[0], reverse=True)
-    started = time.time()
+    # perf_counter, not time.time: on Windows time.time can advance in 15 ms steps, so a
+    # short budget would never run out.
+    started = time.perf_counter()
     batch = []  # (path, hash, chunk_no, text, modified, text_to_embed)
 
     def flush():
@@ -130,7 +132,7 @@ def build(docs, db_path, budget_seconds=0, log=print):
 
     for i, (_, path, h, content, modified) in enumerate(pending):
         # At least one file per run, so a build always makes progress.
-        if budget_seconds and i > 0 and time.time() - started > budget_seconds:
+        if budget_seconds and i > 0 and time.perf_counter() - started > budget_seconds:
             stats["files_left"] = len(pending) - i
             break
         name = os.path.basename(path)
@@ -146,7 +148,7 @@ def build(docs, db_path, budget_seconds=0, log=print):
     # Up to 10 seconds: this file can hold minutes of embedding work, worth waiting for.
     swap_in(tmp_path, vec_path, attempts=20)
     log(f"[X9 Indexer] Semantic index: {stats['embedded']} chunks embedded, {stats['reused']} reused, "
-        f"{time.time() - started:.1f} seconds.")
+        f"{time.perf_counter() - started:.1f} seconds.")
     marker = incomplete_marker(db_path)
     if stats["files_left"]:
         Path(marker).write_text(str(stats["files_left"]))

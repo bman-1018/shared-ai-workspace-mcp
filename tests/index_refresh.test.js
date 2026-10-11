@@ -14,6 +14,12 @@ const SCRIPT = path.join(ROOT, "fake_indexer.js");
 fs.writeFileSync(SCRIPT, `require("fs").appendFileSync(${JSON.stringify(MARK)}, "run\\n");`);
 const runs = () => (fs.existsSync(MARK) ? fs.readFileSync(MARK, "utf8").trim().split("\n").length : 0);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Starting a process can take well over half a second on a busy machine (or a CI runner),
+// so wait for the expected state instead of sleeping a fixed time.
+async function waitFor(check, ms = 5000) {
+  for (const end = Date.now() + ms; Date.now() < end; await wait(25)) if (check()) return true;
+  return check();
+}
 
 test("isFresh is false for a missing file and for an old one", () => {
   const db = path.join(ROOT, "a.db");
@@ -24,9 +30,12 @@ test("isFresh is false for a missing file and for an old one", () => {
 });
 
 test("rebuilds shortly after start when there is no index, and not twice at once", async () => {
-  const r = startIndexRefresh({ command: process.execPath, args: [SCRIPT], dbPath: path.join(ROOT, "missing.db"), intervalHours: 1, startupDelayMs: 20 });
+  const logs = [];
+  const r = startIndexRefresh({ command: process.execPath, args: [SCRIPT], dbPath: path.join(ROOT, "missing.db"), intervalHours: 1, startupDelayMs: 20, log: (m) => logs.push(m) });
   try {
-    await wait(600);
+    // Wait for the run to finish, not just to start: the fake indexer writes its mark before
+    // its process exits, and a refresh requested while one is running is (rightly) skipped.
+    assert.ok(await waitFor(() => logs.some((m) => /rebuilt/.test(m))), `expected a finished run, saw ${runs()} started`);
     assert.equal(runs(), 1);
     const [x, y] = await Promise.all([r.refreshNow(), r.refreshNow()]);
     assert.equal([x, y].filter(Boolean).length, 1, "a second request while one is running is skipped");
@@ -62,8 +71,9 @@ if (n === 0) console.log("[X9 Indexer] ${INCOMPLETE_MARKER}: 3 files left for th
   const logs = [];
   const r = startIndexRefresh({ command: process.execPath, args: [script], dbPath: path.join(ROOT, "none.db"), intervalHours: 1, startupDelayMs: 10, continueDelayMs: 50, log: (m) => logs.push(m) });
   try {
-    await wait(1500);
-    assert.equal(fs.readFileSync(marks, "utf8").length, 2, "one follow-up run, then it stops");
+    assert.ok(await waitFor(() => fs.existsSync(marks) && fs.readFileSync(marks, "utf8").length === 2), "one follow-up run");
+    await wait(300);
+    assert.equal(fs.readFileSync(marks, "utf8").length, 2, "and then it stops");
     assert.match(logs.join("\n"), /continuing shortly/);
   } finally { r.stop(); }
 });
@@ -75,5 +85,5 @@ test("a fresh index is still refreshed at startup when a semantic build was left
   fs.writeFileSync(db, "x");
   fs.writeFileSync(pending, "3");
   const r = startIndexRefresh({ command: process.execPath, args: [SCRIPT], dbPath: db, pendingMarker: pending, intervalHours: 1, startupDelayMs: 20 });
-  try { await wait(600); assert.equal(runs(), before + 1); } finally { r.stop(); }
+  try { assert.ok(await waitFor(() => runs() === before + 1), `expected a run, saw ${runs() - before}`); } finally { r.stop(); }
 });
