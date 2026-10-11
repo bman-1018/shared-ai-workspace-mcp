@@ -107,6 +107,21 @@ test("hybrid search finds files that keyword search misses, and ranks files foun
   assert.equal(query("photosynthesis", "semantic").results.length, 0);
 });
 
+test("hybrid: filler words in a question do not stop the keyword half from matching", { skip }, () => {
+  index();
+  // As a keyword query every word must match, and no file says "what is the".
+  assert.equal(query("what is the zebra migration?", "keyword").results.length, 0);
+  const hybrid = query("what is the zebra migration?", "hybrid").results;
+  assert.equal(path.basename(hybrid[0].path), "both.md");
+  assert.ok(hybrid[0].found_by.includes("keyword"));
+  // A question made only of filler words still searches for them rather than for nothing.
+  assert.doesNotThrow(() => query("what is this", "hybrid"));
+  const terms = (q) => execFileSync(PY, ["-c", "import sys; sys.path.insert(0, sys.argv[1]); from x9_query import topic_terms; print(topic_terms(sys.argv[2]))", ENGINE, q]).toString().trim();
+  assert.equal(terms("how much should customers pay?"), "customers pay");
+  assert.equal(terms('what did we say about "the rollout plan"'), '"the rollout plan"');
+  assert.equal(terms("what is this"), "what is this");
+});
+
 test("unchanged files reuse their vectors; only changed files are embedded again", { skip }, () => {
   index();
   assert.match(index(), /Semantic index: 0 chunks embedded, \d+ reused/);

@@ -68,6 +68,31 @@ def search(query, limit=DEFAULT_LIMIT):
 
 
 MODES = ("hybrid", "keyword", "semantic")
+# Words that carry no topic. A question like "how much should customers pay" would otherwise
+# need all of them in a file, and only long chat logs contain every filler word. In hybrid
+# mode the keyword half searches without them ("customers pay"); the semantic half still
+# sees the whole question. Keyword mode and quoted phrases are left exactly as typed.
+STOPWORDS = set("""
+a an the and or but if then else of to in on at by for with about from into onto over under
+as is are was were be been being am do does did done have has had having will would should
+could can may might must shall i me my mine you your yours he him his she her hers it its
+we us our ours they them their theirs this that these those what which who whom whose when
+where why how much many more most some any all no not nor so than too very just also there
+here now only own same such each few other again once both either neither please tell show
+find give get got let lets want need know think thing things anything something say said
+""".split())
+
+
+def topic_terms(query):
+    """The query without filler words, quoted phrases kept. Falls back to the whole query
+    when nothing would be left."""
+    kept = []
+    for m in re.finditer(r'"([^"]+)"|(\S+)', query):
+        if m.group(1):
+            kept.append('"' + m.group(1) + '"')
+        elif m.group(2).strip('?!.,;:').lower() not in STOPWORDS:
+            kept.append(m.group(2).strip('?!.,;:') or m.group(2))
+    return " ".join(kept) if kept else query
 # Reciprocal rank fusion constant: the usual value. Larger means rank matters less.
 RRF_K = 60
 
@@ -94,7 +119,7 @@ def run(query, limit=DEFAULT_LIMIT, mode="hybrid"):
         partial = f"the first build is still running ({left} files not embedded yet), so semantic results are incomplete"
     if mode == "semantic":
         return {"mode": "semantic", "results": semantic or [], "semantic": reason, "semantic_partial": partial}
-    keyword = search(query, MAX_LIMIT)
+    keyword = search(topic_terms(query), MAX_LIMIT)
     if semantic is None:
         return {"mode": "keyword", "results": keyword[:limit], "semantic": reason}
 
