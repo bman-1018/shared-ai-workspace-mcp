@@ -10,6 +10,11 @@ node_modules/
 # Python
 __pycache__/
 *.pyc
+.venv/
+
+# Semantic search: downloaded model and the marker for an unfinished build
+x9_search_engine/models/
+*.incomplete
 
 # Runtime output and staging
 Hot_Plugins/_temp/

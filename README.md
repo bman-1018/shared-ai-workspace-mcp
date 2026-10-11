@@ -25,7 +25,7 @@ I bought an external SSD to use with Claude Desktop on Windows. In February 2026
 | `Hot_Plugins` | The plugins: `panoptic_push` (save big files in chunks), `submit_code_plan` (write a plan file before coding), `save_session_summary` and `find_sessions` (written summaries of conversations, shared with Codex), `x9_search` (keyword search of your workspace), `x9_workspace_mapper` (folder tree), and `hello_forge` (a test tool). |
 | `readonly_bridge` | A second MCP server that can only read one codebase folder and run `git status`, `diff`, `log -n 5` and `branch`. |
 | `The_Observer` | Scripts that copy the chat log (`audit.jsonl`) of your Claude Desktop agent-mode (Cowork) sessions to the drive and turn it into readable markdown. They do not capture regular Claude chats or ChatGPT. |
-| `x9_search_engine` | The Python indexer and query script behind `x9_search`. It is plain keyword search, not semantic search. |
+| `x9_search_engine` | The Python indexer and query script behind `x9_search`: keyword search, plus optional semantic (meaning-based) search that runs entirely on your PC. |
 
 ## How it works
 
@@ -38,7 +38,7 @@ flowchart LR
   F -- "every 60 s" --> O["The_Observer"]
   F -- "every 6 h" --> I["x9_indexer.py"]
   P -- "write notes and summaries" --> W[("X:\Claude_Workspace")]
-  I --> DB[("x9_vault.db<br/>SQLite FTS5")]
+  I --> DB[("x9_vault.db + x9_vectors.db<br/>keyword index and local embeddings")]
   P -- "x9_search" --> DB
   P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
   B -- "read only" --> C[("your codebase")]
@@ -102,7 +102,23 @@ python X:\Claude_Workspace\_mcp_tools\x9_search_engine\x9_indexer.py
 
 It indexes `.md`, `.js`, `.ts`, `.json`, `.py`, `.txt` and `.sql` files under your workspace and, if there is one next to it, `X:\Codex_Workspace`. It skips files with names like `secrets` or `credentials`, and skips the Forge action log and the raw chat copies in `07_Chat_History` (the action log repeats every earlier search result, so indexing it fills search with old logs). The readable markdown exports in `07_Chat_History\Readable_Logs` are indexed. The result goes in `x9_vault.db` next to the script. That database holds the text of your files, so keep it out of git (the `.gitignore` already does).
 
-Search matches every word you type, in any order, in the file name or the text. Put a phrase in double quotes to keep it together. Each result shows the file's last modified date, and the tool warns you if the index is more than two days old.
+Keyword search matches every word you type, in any order, in the file name or the text. Put a phrase in double quotes to keep it together. Each result shows the file's last modified date, and the tool warns you if the index is more than two days old.
+
+### 7. Semantic search (optional)
+
+Keyword search only finds the words you type. Semantic search finds text with the same meaning: "how much do we charge customers" finds a note titled "Pricing tiers" that never uses those words. It runs entirely on your PC with a small open model ([BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5), MIT license, 133 MB). Your files are never sent anywhere.
+
+To turn it on, install the packages into a virtual environment next to the search scripts. The Forge finds it on its own:
+
+```
+cd X:\Claude_Workspace\_mcp_tools\x9_search_engine
+python -m venv .venv
+.venv\Scripts\python -m pip install --only-binary=:all: -r requirements-semantic.txt
+```
+
+Then restart Claude Desktop. On the next index refresh the model is downloaded once (pinned to a fixed version and checked against a SHA-256 hash), and every file is split into chunks of about 1,000 characters and turned into a vector. The first build of a large workspace takes a while: about 15 chunks a second on a laptop CPU, so roughly 25 minutes for 15 MB of text, using about 1 GB of memory. The Forge spends at most 8 minutes per run, saves its progress, and continues a minute later (also after a restart) until it is done, newest files first. After that only changed files are embedded again, which takes seconds. To do the first build in one go, run the indexer by hand with the virtual environment's Python.
+
+`x9_search` then runs in `hybrid` mode by default: it runs both searches and merges the two rankings (reciprocal rank fusion), so a file found both ways comes first, and each result says whether it was found by `keyword`, `semantic` or both. Claude can also ask for `keyword` only (exact names, codes, error messages) or `semantic` only. Without the packages, search stays keyword only and the result says why.
 
 ## Session summaries: sharing context between Claude and Codex
 
@@ -151,6 +167,10 @@ Set these in the `env` block of the server entry in `claude_desktop_config.json`
 | `X9_CODEX_OUTBOX` | plugins | Codex's results folder, as a name inside `X9_CODEX_ROOT` or a full path. Default: `02_Outbox`, else `03_Outbox`. |
 | `X9_INDEX_CODEX` | search | Set to `0` to leave the Codex workspace out of the index. |
 | `X9_INDEX_SKIP` | search | Extra folder names to leave out of the index, comma separated. |
+| `X9_SEMANTIC` | search | Set to `0` to turn semantic search off even when its packages are installed. |
+| `X9_SEMANTIC_MIN_SCORE` | search | How similar (cosine, 0 to 1) a chunk must be to count as a semantic match. Default `0.65`. Lower finds more, with more noise. |
+| `X9_SEMANTIC_BUDGET_SECONDS` | Forge, search | Most time one index run spends embedding. The Forge uses `480`; running the indexer by hand has no limit. |
+| `X9_VECTOR_DB_PATH`, `X9_MODEL_DIR` | search | Where the embeddings and the downloaded model live. Default: next to the Python scripts. |
 
 ## Suggested workspace layout
 
@@ -217,7 +237,8 @@ Read [SECURITY.md](SECURITY.md) before you use this. The short version:
 - **A server shows an error in Settings, Developer.** Open `%APPDATA%\Claude\logs` and read the `mcp-server-<name>.log` file for that server.
 - **A server fails with `spawn node ENOENT` or `spawn npx ENOENT`.** The log in `%APPDATA%\Claude\logs` shows a line like `[X9_External_Drive] [error] spawn npx ENOENT`. Claude Desktop could not find the program. Install Node.js for Windows (not only inside WSL) and put the full path in `command`, for example `C:\Program Files\nodejs\node.exe` or `C:\Program Files\nodejs\npx.cmd`.
 - **"READONLY_BRIDGE_DIR is not set".** Add it to the `env` block of that server.
-- **The tool is called `x9_search`.** Older notes may call it `x9_semantic_search`; it is the same tool under a more accurate name.
+- **The tool is called `x9_search`.** Older notes may call it `x9_semantic_search`; it is the same tool. It now really does semantic search, if you install the optional packages.
+- **Results say `"semantic_search": "Unavailable: ..."`.** The reason follows. "not installed": follow step 7. "not built yet": the first build is still running; the Forge log shows its progress.
 - **Search says "Bridge execution failed".** Python is not on your PATH. Set `X9_PYTHON`, and run the indexer once so the index file exists.
 - **Search results are old or missing new files.** The result shows when the index was built. The Forge rebuilds it every 6 hours if Python works; check `mcp-server-The_Forge.log` for "Search index rebuild failed", or run the indexer by hand.
 - **`find_sessions` says the Codex folder was not found.** It looks in `Codex_Workspace\02_Outbox` (or `03_Outbox`) next to your Claude workspace. Set `X9_CODEX_ROOT` if the workspace is elsewhere, or `X9_CODEX_OUTBOX` (a folder name or full path) if your results folder has another name.

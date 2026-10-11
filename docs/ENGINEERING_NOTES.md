@@ -24,7 +24,7 @@ flowchart LR
   F -- "every 60 s" --> O["The_Observer"]
   F -- "every 6 h" --> I["x9_indexer.py"]
   P -- "write notes and summaries" --> W[("X:\Claude_Workspace")]
-  I --> DB[("x9_vault.db<br/>SQLite FTS5")]
+  I --> DB[("x9_vault.db + x9_vectors.db<br/>keyword index and local embeddings")]
   P -- "x9_search" --> DB
   P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
   B -- "read only" --> C[("your codebase")]
@@ -46,7 +46,7 @@ Three separate MCP servers, each with the smallest set of permissions it needs:
 
 **A separate process for the codebase, with no write tools.** I could have used the official filesystem server with a "read-only" instruction. Instead the bridge only defines read tools, so a confused or prompt-injected model has nothing to call that writes. The git tool takes an enum of four commands mapped to fixed argument arrays, so no model-supplied text reaches git.
 
-**Keyword search, not embeddings.** Search is SQLite FTS5 with the trigram tokenizer, run by Python's standard library. No model download, no API key, works offline, and partial words match (`deploy` finds `deployment`). The trade-off is that it matches letters, not meaning, and the tool description tells the model so, so it searches with the words that would actually be in the file.
+**Keyword search first, semantic search as a local add-on.** Keyword search is SQLite FTS5 with the trigram tokenizer, run by Python's standard library: no model, no API key, works offline, and partial words match (`deploy` finds `deployment`). It matches letters, not meaning. Semantic search fills that gap, but it is optional, so the project still works with nothing but Python installed. See problem 6 for how it was built.
 
 **Summaries, not transcripts, for sharing context.** Full transcripts are large, noisy, and full of things that should not be kept (pasted secrets, tool output). `save_session_summary` asks the model for a structured summary: what was asked, what was decided and why, exact file and branch names, what is unfinished. That is what the next session, or Codex, actually needs.
 
@@ -99,6 +99,27 @@ Before publishing, I had every source file, dependency lockfile and config revie
 
 **Fix.** The Forge now rebuilds the index in the background (15 seconds after start if it is more than an hour old, then every 6 hours). The rebuild writes a temporary file and swaps it in, with retries because Windows refuses the swap while a search has the file open, so a search never sees a half-built index. The action log and raw chat copies are excluded, while the readable chat exports stay searchable. Every word now matches in any order, file names are searched, quoted phrases work, and results show a date and a highlighted snippet. The tool warns when the index is more than two days old.
 
+### 6. Search by meaning, on a laptop, without sending files anywhere
+
+**Problem.** Keyword search cannot answer "how much do we charge customers" when the note says "the starter plan costs 29 dollars". The obvious fix, a cloud embedding API, would send every file in the workspace (business plans, legal drafts, chat logs) to a third party.
+
+**Constraints.** Everything runs locally. Search must keep working with nothing but Python installed. Any new dependency goes through the same supply-chain check as the npm updates.
+
+**Decisions.**
+
+- **Model.** BAAI/bge-small-en-v1.5 (MIT, 384 dimensions, 133 MB as ONNX), run with `onnxruntime` and `tokenizers`. The usual wrapper, `fastembed`, pulled in 30 packages; calling the two libraries directly took about 60 lines and 21 packages. The download is pinned to a 2024 commit and refused unless its SHA-256 matches. That mattered because Hugging Face reportedly had an intrusion in July 2026.
+- **Storage.** A second SQLite file next to the keyword index, with one row per chunk of about 1,000 characters. The keyword index is rebuilt from scratch every time, but embeddings are slow, so they are keyed by a hash of the file's text and reused when it has not changed. Search is a plain matrix product over all 21,700 vectors in numpy: exact, no vector database, and it takes about a second, including loading the model.
+- **Ranking.** Hybrid by default: the keyword and semantic result lists are merged with reciprocal rank fusion, which needs no tuning between two very different scoring scales. Exact names and error messages still come from keyword search; ideas come from semantic search. Each result says which search found it.
+
+**What measuring changed.**
+
+- **The first build did not fit.** At about 15 chunks a second, my workspace (1,028 files, 21,692 chunks) took 21 minutes, and the Forge kills a background run at 10. The build is now resumable. Each run embeds for at most 8 minutes, newest files first, then saves. A marker file makes the Forge continue a minute later, and again after a restart. Every run embeds at least one file, so it always makes progress. After the first build, a refresh reused all 21,692 chunks and the semantic step took 0.1 seconds.
+- **The similarity cut-off from my small test was wrong.** On three short notes, related text scored 0.62 to 0.70 and unrelated text 0.52 or lower, so I picked 0.6. On the real workspace, off-topic queries ("recipe for banana bread", "zebra crossing safety in Paris") still scored 0.51 to 0.65, while real questions matched at 0.69 to 0.75. The default is now 0.65 and can be changed with a setting.
+- **Memory.** onnxruntime's memory arena made embedding about 45% faster but peaked at 2.1 GB, against 1.1 GB without it. This runs in the background on other people's machines, so I turned the arena off.
+- **Honest limits.** Given a copied 12-word passage, semantic search put the original file in its top 5 for 44 of 60 passages. Finding exact text is what keyword search is for, which is why hybrid mode keeps both.
+
+**Testing without a model.** CI cannot download 133 MB on every run, so the tests use a stand-in embedder (a hashed bag of words). It exercises chunking, storage, reuse, the time budget, the hybrid merge and every fallback, with only numpy installed. One more test runs the real model when it is installed and checks that paraphrased questions with no shared words find the right note.
+
 ## How I work with AI tools
 
 AI tools (Claude and Codex, and Gemini during the early troubleshooting) are part of my workflow, and this project is itself infrastructure for working with them. What makes that work:
@@ -107,7 +128,7 @@ AI tools (Claude and Codex, and Gemini during the early troubleshooting) are par
 - **A second, independent reviewer.** Pull request #4 was reviewed by a separate agent that had not written the code. It found three real bugs the first pass had missed: a Codex folder-name mismatch, readable chat logs being dropped from search, and a missing check in the live migration script. All three were fixed in the same pull request.
 - **Decisions stay with me.** Reviews ended with a list of decisions instead of making them silently. Turning plugin writing off by default, turning secret blocking on, limiting the Observer to the chat log file, removing an unused `puppeteer` dependency and keeping private and business details out of the repo were my calls.
 - **Supply-chain checks before installing anything.** Dependency updates went through a six-layer check: lockfile diff, dependency tree, advisories cross-checked against OSV, maintainer and provenance changes, registry integrity hashes and signatures, and a search for active npm attack campaigns. Versions published in the previous day were held back. CI now repeats the audit and signature check on every pull request.
-- **Tests as the contract.** 121 tests cover the path rules (including Windows rules, simulated on any OS), every plugin, the bridge, the log filter and search. CI runs them on Windows and Ubuntu with Node 20 and 22. A change is not done until they pass.
+- **Tests as the contract.** 131 tests cover the path rules (including Windows rules, simulated on any OS), every plugin, the bridge, the log filter, and keyword and semantic search. CI runs them on Windows and Ubuntu with Node 20 and 22. A change is not done until they pass.
 - **Reversible changes to the live setup.** Every update to my running install made a backup first and came with written rollback steps.
 - **Not trusting the AI's explanations.** Some early explanations, such as the exact cause of the original Claude Desktop bug, came from a model reading logs. Where I could not check them, I do not state them as fact.
 

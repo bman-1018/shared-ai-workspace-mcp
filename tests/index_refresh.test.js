@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isFresh, startIndexRefresh } from "../the_forge/index_refresh.js";
+import { INCOMPLETE_MARKER, isFresh, startIndexRefresh } from "../the_forge/index_refresh.js";
 
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "x9-refresh-"));
 test.after(() => fs.rmSync(ROOT, { recursive: true, force: true }));
@@ -50,4 +50,30 @@ test("can be turned off, and a failing indexer does not throw", async () => {
     assert.equal(await bad.refreshNow(), false);
     assert.match(logs.join("\n"), /failed/);
   } finally { bad.stop(); }
+});
+
+test("an unfinished semantic build continues soon instead of hours later", async () => {
+  // Reports "incomplete" on its first run only, like a first semantic build that runs out of time.
+  const marks = path.join(ROOT, "continue.txt");
+  const script = path.join(ROOT, "fake_semantic.js");
+  fs.writeFileSync(script, `const fs = require("fs"); const p = ${JSON.stringify(marks)};
+const n = fs.existsSync(p) ? fs.readFileSync(p, "utf8").length : 0; fs.appendFileSync(p, "x");
+if (n === 0) console.log("[X9 Indexer] ${INCOMPLETE_MARKER}: 3 files left for the next run.");`);
+  const logs = [];
+  const r = startIndexRefresh({ command: process.execPath, args: [script], dbPath: path.join(ROOT, "none.db"), intervalHours: 1, startupDelayMs: 10, continueDelayMs: 50, log: (m) => logs.push(m) });
+  try {
+    await wait(1500);
+    assert.equal(fs.readFileSync(marks, "utf8").length, 2, "one follow-up run, then it stops");
+    assert.match(logs.join("\n"), /continuing shortly/);
+  } finally { r.stop(); }
+});
+
+test("a fresh index is still refreshed at startup when a semantic build was left unfinished", async () => {
+  const before = runs();
+  const db = path.join(ROOT, "fresh2.db");
+  const pending = path.join(ROOT, "x9_vectors.db.incomplete");
+  fs.writeFileSync(db, "x");
+  fs.writeFileSync(pending, "3");
+  const r = startIndexRefresh({ command: process.execPath, args: [SCRIPT], dbPath: db, pendingMarker: pending, intervalHours: 1, startupDelayMs: 20 });
+  try { await wait(600); assert.equal(runs(), before + 1); } finally { r.stop(); }
 });

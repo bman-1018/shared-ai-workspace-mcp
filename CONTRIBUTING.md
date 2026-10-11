@@ -10,7 +10,7 @@ Thanks for taking a look. Bug reports, fixes for Windows setups that behave diff
 
 ## Development setup
 
-You need Node.js 20 or newer. Python 3.10 or newer is optional; without it the search tests are skipped.
+You need Node.js 20 or newer. Python 3.10 or newer is optional; without it the search tests are skipped. The semantic search tests also need `numpy` (they use a stand-in embedder, so no model is downloaded). With `x9_search_engine/.venv` set up as in the README, one more test runs against the real model.
 
 ```
 git clone https://github.com/bman-1018/shared-ai-workspace-mcp.git

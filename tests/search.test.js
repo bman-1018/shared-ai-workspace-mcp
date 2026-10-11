@@ -27,6 +27,8 @@ fs.writeFileSync(path.join(WS, "notes", "secrets.txt"), "hiddenvaluexyz should n
 fs.writeFileSync(path.join(WS, "notes", "credentials.json"), '{"k":"hiddencredvalue"}');
 const DB = path.join(ROOT, "index.db");
 const PWNED = path.join(ROOT, "pwned.txt");
+// These tests cover keyword search; semantic search has its own file (semantic.test.js).
+process.env.X9_SEMANTIC = "0";
 
 test.after(() => fs.rmSync(ROOT, { recursive: true, force: true }));
 
@@ -75,7 +77,7 @@ test.after(() => fs.rmSync(WS2_ROOT, { recursive: true, force: true }));
 test("search: words in any order, file names, phrases, short terms, limits, Codex files, no logs", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, () => {
   const env = { ...process.env, X9_ROOT: WS2, X9_DB_PATH: DB2 };
   execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_indexer.py")], { env, stdio: "ignore" });
-  const q = (query, limit) => JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), query, ...(limit ? [String(limit)] : [])], { env }).toString());
+  const q = (query, limit) => JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), query, String(limit || 10), "keyword"], { env }).toString()).results;
 
   // every word must match, any order
   const a = q("migration deploy");
@@ -107,8 +109,8 @@ test("search: words in any order, file names, phrases, short terms, limits, Code
 test("search tool reports the index age and can skip the Codex workspace", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, () => {
   const env = { ...process.env, X9_ROOT: WS2, X9_DB_PATH: path.join(WS2_ROOT, "index3.db"), X9_INDEX_CODEX: "0" };
   execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_indexer.py")], { env, stdio: "ignore" });
-  const out = JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), "zebrafinding"], { env }).toString());
-  assert.equal(out.length, 0);
+  const out = JSON.parse(execFileSync(PY, [path.join(REPO, "x9_search_engine", "x9_query.py"), "zebrafinding", "10", "keyword"], { env }).toString());
+  assert.equal(out.results.length, 0);
 });
 
 test("x9_search tool: limit, index age, stale warning", { skip: PY ? false : "no Python with SQLite FTS5 trigram support" }, async () => {

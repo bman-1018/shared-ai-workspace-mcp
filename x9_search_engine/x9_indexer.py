@@ -6,6 +6,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+import x9_vectors
+
 # Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
 X9_ROOT = os.environ.get("X9_ROOT") or r"X:\Claude_Workspace"
 # Default: x9_vault.db next to this script. Override with X9_DB_PATH.
@@ -73,6 +75,7 @@ def build_index():
 
     indexed_count = 0
     start_time = time.time()
+    docs = []  # kept for the semantic index: (path, content, modified, mtime)
 
     for base in index_roots():
         for root, dirs, files in os.walk(base):
@@ -89,11 +92,13 @@ def build_index():
                         if os.path.getsize(full_path) < MAX_FILE_BYTES:
                             with open(full_path, 'r', encoding='utf-8') as f:
                                 content = f.read()
-                            modified = datetime.date.fromtimestamp(os.path.getmtime(full_path)).isoformat()
+                            mtime = os.path.getmtime(full_path)
+                            modified = datetime.date.fromtimestamp(mtime).isoformat()
                             cursor.execute(
                                 'INSERT INTO x9_search (path, content, modified) VALUES (?, ?, ?)',
                                 (full_path, content, modified)
                             )
+                            docs.append((full_path, content, modified, mtime))
                             indexed_count += 1
                     except Exception:
                         pass  # Silently skip locked/binary files
@@ -102,16 +107,21 @@ def build_index():
     conn.close()
     # On Windows the swap fails while a search has the old file open. Searches are short,
     # so a few retries are enough; if it still fails the old index stays in place.
-    for attempt in range(5):
-        try:
-            os.replace(tmp_path, DB_PATH)
-            break
-        except PermissionError:
-            if attempt == 4:
-                os.remove(tmp_path)
-                raise
-            time.sleep(0.5)
+    x9_vectors.swap_in(tmp_path, DB_PATH)
     print(f"[X9 Indexer] Vault sealed. Indexed {indexed_count} files in {time.time() - start_time:.2f} seconds.")
+
+    # Semantic index (optional). X9_SEMANTIC_BUDGET_SECONDS limits the time spent embedding
+    # in one run; the Forge sets it so a background refresh never runs for too long.
+    try:
+        budget = float(os.environ.get("X9_SEMANTIC_BUDGET_SECONDS") or 0)
+    except ValueError:
+        budget = 0
+    try:
+        x9_vectors.build(docs, DB_PATH, budget_seconds=budget)
+    except Exception as e:
+        # The keyword index is already in place; a semantic failure must not undo it.
+        print(f"[X9 Indexer] Semantic index failed: {e}")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
