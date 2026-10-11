@@ -74,6 +74,20 @@ test("the indexer builds the semantic store and leaves out secret files and the 
   assert.ok(sql("select count(*) from chunks where path like '%long.md'")[0][0] > 1, "long files are split into chunks");
 });
 
+test("the downloaded model is never indexed, but a workspace folder named models is", { skip }, () => {
+  const ws = path.join(ROOT, "with-model");
+  const modelDir = path.join(ws, "_mcp_tools", "x9_search_engine", "models", "bge-small-en-v1.5");
+  fs.mkdirSync(modelDir, { recursive: true });
+  fs.writeFileSync(path.join(modelDir, "tokenizer.json"), '{"vocab": "tokenizervocabjunk"}');
+  fs.mkdirSync(path.join(ws, "notes", "models"), { recursive: true });
+  fs.writeFileSync(path.join(ws, "notes", "models", "pricing-model.md"), "Our pricing model has three tiers.");
+  const db = path.join(ROOT, "with-model.db");
+  execFileSync(PY, [path.join(ENGINE, "x9_indexer.py")], { env: { ...baseEnv, X9_ROOT: ws, X9_DB_PATH: db, X9_MODEL_DIR: path.join(ws, "_mcp_tools", "x9_search_engine", "models") } });
+  const kw = (q) => JSON.parse(execFileSync(PY, [path.join(ENGINE, "x9_query.py"), q, "5", "keyword"], { env: { ...baseEnv, X9_DB_PATH: db } }).toString()).results;
+  assert.equal(kw("tokenizervocabjunk").length, 0);
+  assert.equal(kw("three tiers").length, 1);
+});
+
 test("hybrid search finds files that keyword search misses, and ranks files found both ways first", { skip }, () => {
   index();
   const keyword = query("zebra migration", "keyword").results.map((r) => path.basename(r.path));

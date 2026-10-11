@@ -23,6 +23,11 @@ IGNORED_DIRS = {".git", "node_modules", ".venv", "__pycache__", "chat_widget",
 ACTION_LOG = re.compile(r"_Forge_Action_Log\.jsonl?$", re.IGNORECASE)
 CHAT_HISTORY_RAW = {"cowork", "chat"}
 IGNORED_DIRS |= {d.strip() for d in (os.environ.get("X9_INDEX_SKIP") or "").split(",") if d.strip()}
+# The semantic search model sits next to these scripts, often inside the workspace. Its
+# tokenizer.json is 700 KB of vocabulary that would flood search results. Skipped by full
+# path, so a workspace folder that happens to be called "models" is still indexed.
+SKIP_PATHS = {os.path.normcase(os.path.abspath(p)) for p in
+              (Path(__file__).resolve().parent / "models", os.environ.get("X9_MODEL_DIR") or "") if p}
 
 ALLOWED_EXTENSIONS = {".md", ".js", ".ts", ".json", ".py", ".txt", ".sql"}
 MAX_FILE_BYTES = 1_000_000
@@ -79,7 +84,8 @@ def build_index():
 
     for base in index_roots():
         for root, dirs, files in os.walk(base):
-            dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith('.')]
+            dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith('.')
+                       and os.path.normcase(os.path.abspath(os.path.join(root, d))) not in SKIP_PATHS]
             if os.path.basename(root) == "07_Chat_History":
                 dirs[:] = [d for d in dirs if d.lower() not in CHAT_HISTORY_RAW]
 
