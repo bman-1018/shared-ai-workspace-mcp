@@ -7,9 +7,10 @@ Read this file and `_context/README.md` before starting. Confirm you understand 
 2. Work in progress goes in `01_Active_Projects`.
 3. Finished work goes in `03_Final_Outputs` only when I say it is ready.
 4. Confirm before deleting. Confirm before batch-renaming more than 3 files. Prefer new files over overwriting.
-5. Save session summaries to `04_Session_Notes` as `YYYY-MM-DD_session_summary.txt`.
+5. Save session summaries with the `save_session_summary` tool. They go to `04_Session_Notes` as `YYYY-MM-DD_title.md`.
 6. Use absolute paths that start with `X:\Claude_Workspace\`.
 7. The live code is read-only. Use the read-only bridge tools to look at it, never the general file tools.
+8. When I mention earlier work, a past chat, or something Codex did, call `find_sessions` first, then `x9_search`. Do not ask me where files are, and do not ask for folder access to the drive. The workspace tools already reach it.
 
 ## Handoff to Claude Code
 When I say work is ready, write `05_Claude_Code_Handoff\brief_<topic>_YYYY-MM-DD.md` with these sections: OBJECTIVE, VALIDATED DECISIONS, SPECIFICATIONS, CONSTRAINTS, REFERENCE FILES, OPEN QUESTIONS. Keep it short and action-oriented. Leave out discarded options. Ask me to confirm it before I take it into a Claude Code session.
@@ -23,4 +24,4 @@ Codex has its own workspace at `X:\Codex_Workspace`. You may read it but never w
 - When I am brainstorming, challenge weak assumptions and flag risks before I commit.
 
 ## At session end
-Write a summary of what we did, decisions made and next steps. Note anything ready for handoff. Suggest, but do not make, edits to `_context/README.md`.
+Call `save_session_summary`. Write it so someone who was not in the chat (or Codex) can pick the work up: what I asked for, what was done, decisions and the reason for each, exact file, folder and branch names, what is unfinished, and what to do first next time. Summarize, do not paste the conversation. Never include passwords, keys or tokens. Note anything ready for handoff. Suggest, but do not make, edits to `_context/README.md`.

@@ -8,7 +8,8 @@ export const toolSchema = {
     type: "object",
     properties: {},
     required: []
-  }
+  },
+  annotations: { title: "Forge self test", readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
 };
 
 export const toolHandler = async (args) => {
