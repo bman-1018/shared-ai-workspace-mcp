@@ -49,3 +49,31 @@ test("deep and wide objects do not blow up", () => {
   for (let i = 0; i < 50; i++) { cur.n = {}; cur = cur.n; }
   assert.doesNotThrow(() => sanitizeForLog(deep));
 });
+
+test("redactSecrets hides secrets without shortening the text", async () => {
+  const { redactSecrets } = await import("../the_forge/log_sanitize.js");
+  const long = "word ".repeat(1000);
+  const out = redactSecrets(`${long} sk-live-abcdefghijklmnopqrstuvwx ${long}`);
+  assert.doesNotMatch(out, /abcdefghijklmnopqrstuvwx/);
+  assert.match(out, /\[REDACTED\]/);
+  assert.ok(out.length > 9000, "must not truncate");
+});
+
+test("more key shapes are hidden, plain sentences are not", async () => {
+  const { redactSecrets } = await import("../the_forge/log_sanitize.js");
+  const secrets = [
+    "AIzaSyA1234567890abcdefghijklmnopqrstuv",
+    "github_pat_11ABCDEFG0abcdefghijkl_mnop",
+    "shpat_0123456789abcdef0123456789abcdef",
+    "whsec_abcdefghijklmnop1234",
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abc123def456",
+    "postgres://user:pass@db.example.com/app",
+    "password: hunter2x9",
+    "api key = abc123def456",
+    "hf_abcdefghijklmnopqrstuvwxyz012345",
+  ];
+  for (const s of secrets) assert.equal(redactSecrets(`value ${s} end`).includes("[REDACTED]"), true, s);
+  for (const ok of ["token: refresh logic is fine", "secret: management plan", "see http://localhost:3000/path", "the password reset flow"]) {
+    assert.equal(redactSecrets(ok), ok, ok);
+  }
+});

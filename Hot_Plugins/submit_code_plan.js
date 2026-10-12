@@ -15,7 +15,8 @@ export const toolSchema = {
       step_by_step_plan: { type: "string" }
     },
     required: ["feature_name", "files_to_modify", "step_by_step_plan"]
-  }
+  },
+  annotations: { title: "Submit code plan", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
 };
 
 const PLAN_DIR = path.join(X9_ROOT, "06_Code_Plans");

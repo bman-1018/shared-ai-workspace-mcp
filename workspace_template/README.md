@@ -30,7 +30,7 @@ Claude_Workspace\
   01_Active_Projects\         work in progress
   02_Raw_Inputs\              source material, treated as read-only
   03_Final_Outputs\           finished deliverables only
-  04_Session_Notes\           one summary per session: YYYY-MM-DD_session_summary.txt
+  04_Session_Notes\           one summary per session: YYYY-MM-DD_title.md, written by save_session_summary
   05_Claude_Code_Handoff\     briefs from chat to Claude Code: brief_<topic>_YYYY-MM-DD.md
   06_Code_Plans\              plans written by the submit_code_plan tool
   07_Chat_History\            logs and chat copies (created by the Forge and Observer, never commit)
@@ -80,7 +80,7 @@ Codex_Workspace\
 Each agent writes only to its own workspace and reads the other's:
 
 - Claude writes briefs to `Claude_Workspace\09_For_Codex`. Codex reads them there.
-- Codex writes results to `Codex_Workspace\02_Outbox`. Claude reads them through the read-only `Codex_ReadOnly` server.
+- Codex writes results to `Codex_Workspace\02_Outbox`. Claude reads them through the read-only `Codex_ReadOnly` server (or the Forge's `find_sessions`).
 
 Neither agent can change the other's files, so a mistake or a prompt injection on one side stays on that side. See the main README for the config and for the Codex sandbox setting that keeps it this way.
 
