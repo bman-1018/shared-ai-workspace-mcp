@@ -32,7 +32,7 @@ Ask me:
  e) Whether I also use Codex. If yes, I want a read-only entry called "Codex_ReadOnly" so Claude can read <DRIVE>:\Codex_Workspace but not change it.
 
 STEP 1: PREREQUISITES
-Check Node.js 20 or newer (node -v). If I chose search, check Python 3.10 or newer (python --version). If I want to use git to download the repo, check git --version. Tell me what is missing and how to install it. Do not install anything without my OK.
+Check Node.js 22 or newer (node -v). If I chose search, check Python 3.10 or newer (python --version). If I want to use git to download the repo, check git --version. Tell me what is missing and how to install it. Do not install anything without my OK.
 
 STEP 2: GET THE FILES
 Make sure <DRIVE>:\Claude_Workspace exists (create it if not), along with the subfolders listed for "X9_External_Drive" in claude_desktop_config.example.json (workspace_template\claude in the repository has them; create any that are missing). Put the repository contents into <DRIVE>:\Claude_Workspace\_mcp_tools, using git clone or a downloaded ZIP. Do not rename the folders inside it (the_forge, Hot_Plugins, readonly_bridge, The_Observer, x9_search_engine). If _mcp_tools already exists and is not empty, stop and ask me.

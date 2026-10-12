@@ -216,8 +216,13 @@ async function startSystem() {
       command: findPython,
       args: [indexer],
       dbPath: process.env.X9_DB_PATH || path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_vault.db"),
+      pendingMarker: (process.env.X9_VECTOR_DB_PATH ||
+        path.join(path.dirname(process.env.X9_DB_PATH || path.join(MCP_TOOLS_DIR, "x9_search_engine", "x9_vault.db")), "x9_vectors.db")) + ".incomplete",
       intervalHours: Number.isFinite(hours) ? hours : 6,
       startupDelayMs: Number.isFinite(delay) && delay >= 0 ? delay : 15000,
+      // One background run embeds for at most 8 minutes (it is killed at 10); a first
+      // semantic build continues in the next run. Running the indexer by hand has no limit.
+      env: { X9_SEMANTIC_BUDGET_SECONDS: process.env.X9_SEMANTIC_BUDGET_SECONDS || "480" },
       log: (m) => console.error(m),
     });
   }

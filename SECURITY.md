@@ -9,7 +9,8 @@ This project gives an AI model tools that touch real files and run code on your 
 | `the_forge` + `Hot_Plugins` | Loads and runs every `.js` file in `Hot_Plugins` as you, and logs tool calls | Anything that can write a `.js` file there can run code on your PC |
 | `panoptic_push` | Writes files into the workspace folders. The routes into `_mcp_tools` and `Claude_Plugins` are off unless you set `X9_ALLOW_PLUGIN_WRITE=1` | With that setting on, it can be used to add a plugin that runs on your PC |
 | `X9_External_Drive` (official file server) | Reads, writes and moves files in the folders you give it | If the folder list includes `_mcp_tools` or `Claude_Plugins`, for example by listing the whole workspace, Claude can add a plugin that runs on your PC. The example config lists only safe subfolders |
-| `x9_search` | Returns text from your indexed files, including the Codex workspace if one sits next to yours | Whatever is indexed can be shown to the model. The index file holds that text in plain form |
+| `x9_search` | Returns text from your indexed files, including the Codex workspace if one sits next to yours | Whatever is indexed can be shown to the model. The index files (`x9_vault.db`, and `x9_vectors.db` with semantic search) hold that text in plain form |
+| Semantic search (optional) | Downloads one model file and one tokenizer file from Hugging Face on first use, then runs on your PC | The download is pinned to a fixed commit and refused unless its SHA-256 hash matches. The model is ONNX, a data format that does not run Python code when loaded. The Python packages are pinned to exact versions in `requirements-semantic.txt`; install them with `--only-binary=:all:` so no package build script runs |
 | `save_session_summary` / `find_sessions` | Write a summary file into `04_Session_Notes` (never overwrites); list and read summaries from the Claude and Codex summary folders | Summaries are plain text that the other agent reads. Secrets are filtered by pattern only, so a password the model writes in plain words is not caught. `find_sessions` can read only regular `.md` files directly inside those folders. Text from the other agent reaches the model as data; the tool descriptions and the server instructions say it must not be followed as instructions, but that is not enforced |
 | `readonly_bridge` | Reads one folder you choose (size-limited), runs four read-only git commands | Shows the model the files in that folder. The secret filter is by file name only, and `git diff` can show the contents of tracked files |
 | `The_Observer` | Copies the chat log (`audit.jsonl`) of Claude Desktop agent-mode sessions to the drive | Plain-text copy of those conversations |
@@ -25,7 +26,7 @@ This project gives an AI model tools that touch real files and run code on your 
 
 ## Review history
 
-A security review was done in October 2026 before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. It covered all source files, the dependency lockfiles, and a search for secrets and personal data. No credentials were found. The fixes were first tested on Linux with Windows path rules simulated. Since then, CI runs the full test suite on Windows and Ubuntu (Node 20 and 22) for every pull request. Those tests use temporary folders, not Claude Desktop or a real external drive.
+A security review was done in October 2026 before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. It covered all source files, the dependency lockfiles, and a search for secrets and personal data. No credentials were found. The fixes were first tested on Linux with Windows path rules simulated. Since then, CI runs the full test suite on Windows and Ubuntu (Node 22 and 24) for every pull request. Those tests use temporary folders, not Claude Desktop or a real external drive.
 
 ### Fixed
 
@@ -51,7 +52,7 @@ A security review was done in October 2026 before this repo was released. It was
 | The bridge limits a file to 512 KB and a multi-file read to 2 MB and 50 files, and refuses binary files | Stops one request from flooding the model's context or stalling the server |
 | The Observer copies only `audit.jsonl`, not the whole session folders | Uploads, outputs and caches stay where they are |
 | The Forge log keeps one JSON object per line, cuts long values, hides secret-looking keys and values, and can be turned off with `X9_FORGE_LOG=off` | The old log stored full file contents and was not valid JSON |
-| The search tool is named `x9_search` | It is keyword search, not semantic search |
+| The search tool is named `x9_search` | It started as keyword search only; semantic search is now an optional, local add-on |
 | `X9_External_Drive` lists workspace subfolders, not the workspace root | The file server cannot exclude a folder, so listing the root would let Claude write a plugin |
 | Search skips the Forge action log and the raw chat copies in `07_Chat_History`, and rebuilds the index into a temporary file before swapping it in | The action log repeats earlier results and file contents; a rebuild during a search never shows a half-built index |
 | Session summaries are saved with exclusive create, a safe file name, one-line quoted titles and secret patterns replaced (keys, tokens, JSON web tokens, `user:password@` URLs and `password: value` text; best effort). `find_sessions` skips symbolic links | A summary can not overwrite an earlier one, escape its folder, or forge its own header |
