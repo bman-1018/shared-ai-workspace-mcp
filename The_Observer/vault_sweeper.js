@@ -1,6 +1,7 @@
 /**
  * The_Observer/vault_sweeper.js
- * Version: 2.0.0 (Delta Sync Ghost Mode)
+ * Copies the chat log (audit.jsonl) of each Claude Desktop agent-mode (Cowork)
+ * session to 07_Chat_History\Cowork on the drive. Only new or changed logs are copied.
  */
 
 import fs from 'fs-extra';
@@ -12,21 +13,15 @@ if (!process.env.APPDATA) {
 }
 const SOURCE_PROFILE = path.join(process.env.APPDATA, 'Claude');
 // Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
-const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
-const HISTORY_DIR = path.join(X9_ROOT, "07_Chat_History");
+const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\Claude_Workspace");
+const COWORK_DEST = path.join(X9_ROOT, "07_Chat_History", "Cowork");
 
-const FOLDERS = {
-    Cowork: path.join(HISTORY_DIR, "Cowork"),
-    // Code: path.join(HISTORY_DIR, "Code")  // DISABLED 2026-03-26 - raw JSONL stays on C: drive
-};
-
-// FILTER: copies ONLY the chat log file (audit.jsonl) from each session, and only
-// when it is new or changed. Everything else in the session folders (uploads,
-// outputs, caches, debug files) stays where it is.
+// Copies ONLY the chat log file (audit.jsonl) from each session. Everything else in
+// the session folders (uploads, outputs, caches, debug files) stays where it is.
 const COPY_ONLY_FILE = 'audit.jsonl';
 const SKIP_DIRS = new Set(['debug', 'latest', 'logs', 'node_modules']);
 
-const stealthFilter = async (src, dest) => {
+const copyFilter = async (src, dest) => {
     const basename = path.basename(src);
     let srcStat;
     try {
@@ -39,7 +34,7 @@ const stealthFilter = async (src, dest) => {
     }
     if (basename !== COPY_ONLY_FILE) return false;
 
-    // Delta Check: only copy if the source is newer than the destination
+    // Only copy if the source is newer than the copy on the drive.
     try {
         const destStat = await fs.stat(dest);
         if (srcStat.mtimeMs <= destStat.mtimeMs) return false;
@@ -50,34 +45,22 @@ const stealthFilter = async (src, dest) => {
 };
 
 async function sweepVault() {
-    for (const folder of Object.values(FOLDERS)) {
-        await fs.ensureDir(folder);
-    }
+    await fs.ensureDir(COWORK_DEST);
 
     const coworkSource = path.join(SOURCE_PROFILE, 'local-agent-mode-sessions');
-    const codeSource = path.join(SOURCE_PROFILE, 'claude-code-sessions');
-
     if (await fs.pathExists(coworkSource)) {
         try {
-            await fs.copy(coworkSource, FOLDERS.Cowork, { 
-                overwrite: true, 
-                preserveTimestamps: true, // CRITICAL: Preserves true file age
-                filter: stealthFilter 
+            await fs.copy(coworkSource, COWORK_DEST, {
+                overwrite: true,
+                preserveTimestamps: true, // the flattener compares timestamps to skip unchanged logs
+                filter: copyFilter
             });
-        } catch (err) {}
+        } catch (err) {
+            // A non-zero exit makes the Forge write this to its log (mcp-server-The_Forge.log).
+            console.error(`[Observer] Copy failed: ${err.message}`);
+            process.exitCode = 1;
+        }
     }
-
-    // DISABLED 2026-03-26 - Claude Code sessions no longer synced to X9.
-    // Raw JSONL remains on C: drive at ~/.claude/projects/ if needed.
-    // if (await fs.pathExists(codeSource)) {
-    //     try {
-    //         await fs.copy(codeSource, FOLDERS.Code, { 
-    //             overwrite: true, 
-    //             preserveTimestamps: true,
-    //             filter: stealthFilter 
-    //         });
-    //     } catch (err) {}
-    // }
 }
 
 sweepVault();
