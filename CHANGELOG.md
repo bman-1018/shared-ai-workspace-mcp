@@ -5,6 +5,7 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Added
+- Optional semantic search for `x9_search`, running entirely on your PC: a small open embedding model (bge-small-en-v1.5) through onnxruntime, embeddings stored in `x9_vectors.db` and reused for unchanged files, hybrid ranking that merges keyword and semantic results, a `mode` option (`hybrid`, `keyword`, `semantic`), and a resumable first build that the Forge continues in the background. Install with `x9_search_engine/requirements-semantic.txt`; without it search stays keyword only.
 - `save_session_summary` and `find_sessions`: written summaries of conversations, saved by Claude and read from both the Claude and Codex workspaces.
 - The search index rebuilds itself in the background (`X9_INDEX_REFRESH_HOURS`, `X9_INDEX_STARTUP_DELAY_MS`) and is swapped in atomically.
 - Server instructions that tell the client when to use the workspace tools.
@@ -18,6 +19,8 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - Tool descriptions and log messages use plain language (no behavior change; tool names are unchanged).
 - The Observer scripts report copy and conversion errors to the Forge log instead of ignoring them.
 - Docs say plainly that the project does not connect Codex or web-based clients, how a local Codex can reach the drive, and why remote access through a tunnel is not supported.
+
+- Node.js 22 or newer is required (Node 20 reached end of life in April 2026); CI tests Node 22 and 24.
 
 ### Removed
 - Dead, commented-out Claude Code sync code from the Observer.

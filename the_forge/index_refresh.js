@@ -21,25 +21,39 @@ export function isFresh(dbPath, maxAgeMs, now = Date.now()) {
  * intervalHours: 0 turns the refresh off.
  * Returns { refreshNow, stop }.
  */
-export function startIndexRefresh({ command, args, dbPath, intervalHours = 6, startupDelayMs = 15000, log = () => {} }) {
+// The first semantic build can take longer than one run is allowed (it embeds every file).
+// The indexer saves its progress and prints this line; the next run then starts soon
+// instead of hours later.
+export const INCOMPLETE_MARKER = "Semantic index incomplete";
+
+export function startIndexRefresh({ command, args, dbPath, pendingMarker, intervalHours = 6, startupDelayMs = 15000, continueDelayMs = 60000, env, log = () => {} }) {
   if (!(intervalHours > 0)) {
     log("[Forge] Index refresh is off (X9_INDEX_REFRESH_HOURS=0).");
     return { refreshNow: async () => false, stop() {} };
   }
   const intervalMs = intervalHours * 3600 * 1000;
   let running = false;
+  let continueTimer = null;
 
   async function refreshNow() {
     if (running) return false;
     running = true;
     try {
       await new Promise((resolve, reject) => {
-        execFile(typeof command === "function" ? command() : command, args, { timeout: 10 * 60 * 1000, windowsHide: true, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+        execFile(typeof command === "function" ? command() : command, args, { timeout: 10 * 60 * 1000, windowsHide: true, maxBuffer: 1024 * 1024, env: env ? { ...process.env, ...env } : undefined }, (err, stdout) => {
           if (err) reject(err);
           else resolve(stdout);
         });
+      }).then((stdout) => {
+        if (String(stdout).includes(INCOMPLETE_MARKER)) {
+          log("[Forge] Search index rebuilt; semantic index still being built, continuing shortly.");
+          clearTimeout(continueTimer);
+          continueTimer = setTimeout(refreshNow, continueDelayMs);
+          continueTimer.unref?.();
+        } else {
+          log("[Forge] Search index rebuilt.");
+        }
       });
-      log("[Forge] Search index rebuilt.");
       return true;
     } catch (err) {
       log(`[Forge] Search index rebuild failed: ${err.message}`);
@@ -51,12 +65,13 @@ export function startIndexRefresh({ command, args, dbPath, intervalHours = 6, st
 
   const first = setTimeout(() => {
     // Claude Desktop can start the server several times a day; do not rebuild each time.
-    if (!isFresh(dbPath, 60 * 60 * 1000)) refreshNow();
+    // ...unless a semantic build was left unfinished.
+    if (!isFresh(dbPath, 60 * 60 * 1000) || (pendingMarker && fs.existsSync(pendingMarker))) refreshNow();
   }, startupDelayMs);
   const timer = setInterval(refreshNow, intervalMs);
   // Never keep the process alive just for these.
   first.unref?.();
   timer.unref?.();
 
-  return { refreshNow, stop() { clearTimeout(first); clearInterval(timer); } };
+  return { refreshNow, stop() { clearTimeout(first); clearInterval(timer); clearTimeout(continueTimer); } };
 }

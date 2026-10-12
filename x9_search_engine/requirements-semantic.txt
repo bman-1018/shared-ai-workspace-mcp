@@ -1,0 +1,32 @@
+# Optional: local semantic search for x9_search. Without these, search is keyword only.
+#
+# Install into a virtual environment next to the search scripts (the Forge uses it
+# automatically):
+#   python -m venv x9_search_engine\.venv
+#   x9_search_engine\.venv\Scripts\python -m pip install --only-binary=:all: -r x9_search_engine\requirements-semantic.txt
+#
+# Exact versions, screened before they were added (wheels only, no install scripts, no
+# known vulnerabilities, PyPI hashes checked). Update them deliberately, not automatically.
+# The model (BAAI/bge-small-en-v1.5, MIT) is downloaded once on first use, pinned to a
+# commit and checked against a SHA-256 hash (see x9_embed.py).
+numpy==2.5.3
+onnxruntime==1.30.0
+tokenizers==0.23.2
+anyio==4.15.1
+certifi==2026.7.22
+click==8.5.0
+colorama==0.4.6
+filelock==4.0.9
+flatbuffers==25.12.19
+fsspec==2026.9.0
+h11==0.16.0
+hf-xet==1.6.0
+httpcore==1.0.9
+httpx==0.28.1
+huggingface_hub==1.33.0
+idna==3.20
+packaging==26.3
+protobuf==7.36.2
+PyYAML==6.0.3
+tqdm==4.70.1
+typing_extensions==4.16.0

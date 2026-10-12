@@ -16,7 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [20, 22]
+        # The current LTS lines: 24 (active) and 22 (maintenance). Node 20 reached end of life in April 2026.
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,6 +28,9 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies from the lockfiles
         run: npm run install:all
+      # numpy only: the semantic search tests use a stand-in embedder, so no model download.
+      - name: Install numpy for the semantic search tests
+        run: "python -m pip install --only-binary=:all: numpy==2.5.3"
       - name: Run tests
         run: npm test
 
@@ -37,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: Install dependencies from the lockfiles
         run: npm run install:all
       - name: Known vulnerabilities
