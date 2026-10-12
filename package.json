@@ -2,6 +2,25 @@
   "name": "shared-ai-workspace-mcp",
   "version": "1.0.0",
   "description": "MCP servers and plugins that give Claude Desktop a persistent workspace on an external drive.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-desktop",
+    "codex",
+    "windows",
+    "ai-agents",
+    "sqlite-fts5"
+  ],
+  "homepage": "https://github.com/bman-1018/shared-ai-workspace-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bman-1018/shared-ai-workspace-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bman-1018/shared-ai-workspace-mcp/issues"
+  },
+  "author": "Blake DeHart",
   "private": true,
   "license": "MIT",
   "type": "module",

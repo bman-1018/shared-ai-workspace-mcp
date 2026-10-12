@@ -1,12 +1,17 @@
 # Shared AI Workspace MCP: a persistent workspace for Claude on an external drive
 
+[![CI](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)
+![Node 20+](https://img.shields.io/badge/node-%3E%3D20-339933.svg)
+
 If you use Claude (or ChatGPT or Codex) across several projects on Windows, you know the problem: every new chat starts from zero. Notes, plans, and decisions end up scattered across chat histories you cannot search.
 
 This repo is a working setup that fixes that for Claude Desktop. It puts a workspace on an external SSD and gives Claude Desktop tools to read it, write to it, search it, and save its own chat history back into it. Because the workspace is just folders and text files, any other tool that can open a folder (Codex, an editor, a different chat app) can use the same files.
 
 It is meant for Windows users. You edit one config file, restart Claude Desktop, and the tools appear.
 
-What it is not: there is no ChatGPT integration (ChatGPT cannot run local MCP servers), and Codex is connected only through the shared plain-text folders described below. This project is not affiliated with or endorsed by Anthropic or OpenAI. Claude, ChatGPT and Codex are trademarks of their owners.
+What it is not: it does not connect web-based clients. ChatGPT, Codex in ChatGPT and the claude.ai website run on their makers' servers and cannot reach a server on your PC without a public HTTPS address, which this project does not provide (see [Remote access](SECURITY.md#remote-access-is-not-supported)). It also does not connect Codex for you: Claude reads Codex's folder, and how Codex reaches the drive is up to your setup (see [Codex access](#codex-access)). This project is not affiliated with or endorsed by Anthropic or OpenAI. Claude, ChatGPT and Codex are trademarks of their owners.
 
 ## Why this exists
 
@@ -21,6 +26,27 @@ I bought an external SSD to use with Claude Desktop on Windows. In February 2026
 | `readonly_bridge` | A second MCP server that can only read one codebase folder and run `git status`, `diff`, `log -n 5` and `branch`. |
 | `The_Observer` | Scripts that copy the chat log (`audit.jsonl`) of your Claude Desktop agent-mode (Cowork) sessions to the drive and turn it into readable markdown. They do not capture regular Claude chats or ChatGPT. |
 | `x9_search_engine` | The Python indexer and query script behind `x9_search`. It is plain keyword search, not semantic search. |
+
+## How it works
+
+```mermaid
+flowchart LR
+  CD["Claude Desktop"] -- stdio --> F["the_forge<br/>(plugin host)"]
+  CD -- stdio --> B["readonly_bridge"]
+  CD -- stdio --> FS["official filesystem server<br/>(workspace subfolders only)"]
+  F -- "loads and hot-reloads" --> P["Hot_Plugins/*.js"]
+  F -- "every 60 s" --> O["The_Observer"]
+  F -- "every 6 h" --> I["x9_indexer.py"]
+  P -- "write notes and summaries" --> W[("X:\Claude_Workspace")]
+  I --> DB[("x9_vault.db<br/>SQLite FTS5")]
+  P -- "x9_search" --> DB
+  P -- "find_sessions (read only)" --> CX[("X:\Codex_Workspace")]
+  B -- "read only" --> C[("your codebase")]
+  CO["Codex<br/>(connected by you, not included)"] -. "writes its summaries" .-> CX
+  CO -. reads .-> W
+```
+
+Each server gets only the permissions it needs. The Forge runs the plugins and can write notes, but not into the folders that hold code. The read-only bridge has no write tools at all. The official filesystem server is given workspace subfolders only. Claude only reads Codex's workspace. The dotted lines are Codex's side, which you set up yourself (see [Codex access](#codex-access)). The reasoning behind these choices, and the problems that led to them, are in [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md).
 
 ## Before you start
 
@@ -87,7 +113,7 @@ Instead of saving whole transcripts, the Forge saves a **written summary** of ea
 | `save_session_summary` | Saves a summary as `04_Session_Notes\YYYY-MM-DD_title.md` in the Claude workspace. Never overwrites an earlier one. Replaces anything that looks like an API key or token. | Yes, only inside `04_Session_Notes` |
 | `find_sessions` | Lists or searches the summaries from both agents (Claude's `04_Session_Notes` and Codex's `<outbox>\session_summaries` plus the finished reviews in its outbox, where `<outbox>` is `02_Outbox` or `03_Outbox`) and reads one in full. | No |
 
-Codex does the same in its own workspace: it writes `X:\Codex_Workspace\02_Outbox\session_summaries\YYYY-MM-DD_title.md` in the same format (see `workspace_template/codex/AGENTS.md`). Because each agent only reads the other's folder, nothing needs to be copied: ask Claude "what did Codex do on the billing work?" and `find_sessions` reads Codex's summaries, or tell Codex to read `X:\Claude_Workspace\04_Session_Notes` to see what Claude decided.
+Codex does the same in its own workspace, if it can reach the drive (see [Codex access](#codex-access)): it writes `X:\Codex_Workspace\02_Outbox\session_summaries\YYYY-MM-DD_title.md` in the same format (see `workspace_template/codex/AGENTS.md`). Because each agent only reads the other's folder, nothing needs to be copied: ask Claude "what did Codex do on the billing work?" and `find_sessions` reads Codex's summaries, or tell Codex to read `X:\Claude_Workspace\04_Session_Notes` to see what Claude decided.
 
 To get a summary saved, say "save a session summary" at the end of a chat. The server also tells Claude to do this when a substantial session ends, but it cannot force it.
 
@@ -160,7 +186,18 @@ Each agent writes only to its own workspace and reads the other's:
 
 Work moves by pulling, not pushing: Claude leaves briefs in `09_For_Codex`, Codex leaves results in its `02_Outbox`, and each reads the other's folder. The Forge never writes into the other agent's workspace. That holds for the Forge only: if you give the `X9_External_Drive` file server a folder that contains the Codex workspace (for example the whole drive), Claude can write there too, so give it only the folders it should write. Text from the other agent is data, not instructions, and the tools say so to the model.
 
-Claude's side is enforced by the config above. For Codex, keep the Claude workspace out of `sandbox_workspace_write.writable_roots` in `~/.codex/config.toml`, so its sandbox can only write inside `Codex_Workspace`. Whether Codex can read outside its workspace depends on your Codex version and sandbox settings, so test it: start Codex in `X:\Codex_Workspace` and ask it to read a file from `X:\Claude_Workspace`. If it can't, either grant read access in your Codex settings or paste the brief in by hand.
+Claude's side is enforced by the config above. Codex's side depends on how you give Codex access, described next.
+
+### Codex access
+
+This project does not connect Codex. Claude's half is built in: `find_sessions`, `x9_search` and `Codex_ReadOnly` read the Codex folder on the drive. For Codex to write its summaries and read Claude's notes, Codex itself needs access to the drive, and that depends on which Codex you use:
+
+| Codex | How it can reach the drive | Status |
+|---|---|---|
+| Desktop app or CLI on the same PC | Directly, as local files, or by starting the servers itself: add them under `[mcp_servers.<name>]` in `~/.codex/config.toml` with the same `command` and `args` as in `claude_desktop_config.example.json`. No URL is needed. | Not tested by this project |
+| Codex in ChatGPT (web) | It runs on OpenAI's servers, so it can only reach an MCP server that has a public HTTPS address | Not supported. See [Remote access](SECURITY.md#remote-access-is-not-supported) |
+
+To keep the one-way rule on Codex's side, give it write access only to `X:\Codex_Workspace`. For the CLI and desktop app, keep the Claude workspace out of `sandbox_workspace_write.writable_roots`, and do not give a Codex file server the whole drive. With a whole-drive file server or full-access sandbox mode, Codex can write into the Claude workspace, including `_mcp_tools\Hot_Plugins`, whose files the Forge runs. If Codex cannot read the Claude workspace, paste the brief in by hand.
 
 ## Adding your own tool
 
@@ -189,9 +226,15 @@ Read [SECURITY.md](SECURITY.md) before you use this. The short version:
 
 ## How this was made and checked
 
+AI tools (Claude and Codex) are part of my workflow, including an independent AI review of larger changes before they merge. [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md) describes that workflow, the design trade-offs and the problems solved along the way.
+
 A security review was done before this repo was released. It was run by the author, not by an independent party, so it is not an independent audit. The review found and fixed a path traversal in `panoptic_push`, a shell command injection in the search plugin, a path prefix bug in the read-only bridge, and vulnerable dependencies, and it added safer defaults (plugin writing off, a narrower file-server folder list, secret blocking on, size limits, log redaction). Details are in [SECURITY.md](SECURITY.md).
 
-Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated), the plugins, the read-only bridge and the log filter. They run on Linux in CI. The setup has not been run through an automated test on Windows, so please report anything that behaves differently on your machine.
+Tests are in `tests/` and run with `npm test`. They check the path rules (including Windows path rules, simulated on any OS), every plugin, the read-only bridge, the Observer, search and the log filter. CI runs them on every pull request on Windows and Ubuntu with Node 20 and 22, together with `npm audit` and a registry signature check. The tests use temporary folders, not Claude Desktop or a real external drive, so the full setup has not been run end to end on a clean Windows machine. Please report anything that behaves differently on yours.
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the rules plugins must follow, and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 ## License
 

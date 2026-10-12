@@ -9,7 +9,7 @@ import util from "util";
 
 const execFilePromise = util.promisify(execFile);
 
-// THE HARD LOCK: The exact Windows path to the codebase this bridge may read.
+// The one folder (usually a codebase) this bridge may read.
 // Set READONLY_BRIDGE_DIR in claude_desktop_config.json (there is no default on purpose).
 const configuredDir = process.env.READONLY_BRIDGE_DIR;
 if (!configuredDir) {
@@ -100,7 +100,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "panoptic_shadow_ingest",
-      description: "The Panoptic Protocol: Instantly reads and concatenates an array of multiple files. Bypasses sequential read latency.",
+      description: "Read several files from the local codebase in one call (up to 50 files and 2 MB in total) and return them concatenated, each under a FILE: header. Faster than reading files one at a time. STRICTLY READ ONLY.",
       inputSchema: {
         type: "object",
         properties: { 
@@ -114,7 +114,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      // THE NEW GIT SHADOW READER
       name: "git_shadow_reader",
       description: "Read-only Git tool to check the local codebase's git status, diffs, and recent commits. NO WRITE OR PUSH COMMANDS ALLOWED.",
       inputSchema: {
@@ -156,7 +155,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: files.join("\n") }] };
     }
 
-    // --- TOOL 3: PANOPTIC INGEST PROTOCOL ---
+    // --- TOOL 3: MULTI-FILE READ ---
     if (name === "panoptic_shadow_ingest") {
       const pathsArray = args.target_paths || [];
       if (!Array.isArray(pathsArray)) {
@@ -167,7 +166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Too many files: ${pathsArray.length} (limit ${MAX_INGEST_FILES}).`);
       }
       let totalBytes = 0;
-      let combinedOutput = "=== PANOPTIC INGEST PROTOCOL INITIATED ===\n";
+      let combinedOutput = "=== MULTI-FILE READ ===\n";
       for (const relativePath of pathsArray) {
         if (typeof relativePath !== "string") {
           combinedOutput += "\n[SKIPPED] A path was not a string.\n";
@@ -188,7 +187,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           combinedOutput += `\n[READ ERROR] Could not read ${relativePath} (${error.message})\n`;
         }
       }
-      combinedOutput += `\n=== PANOPTIC INGEST COMPLETE ===`;
+      combinedOutput += `\n=== END OF MULTI-FILE READ ===`;
       return { content: [{ type: "text", text: combinedOutput }] };
     }
 
@@ -227,4 +226,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Boot the bridge
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("X9 Read-Only Bridge Active on Stdio. Panoptic Protocol & Git Reader Online.");
+console.error(`[Read-only bridge] Running on stdio. Allowed folder: ${ALLOWED_DIR}`);

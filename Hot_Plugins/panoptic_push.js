@@ -95,7 +95,7 @@ export const toolHandler = async (args) => {
       await fs.copyFile(tempPath, finalPath);
       await fs.unlink(tempPath);
       
-      return { status: "Success", message: `PANOPTIC PUSH COMPLETE: File assembled and saved to ${finalPath}` };
+      return { status: "Success", message: `File assembled from its chunks and saved to ${finalPath}` };
     }
 
     // 3. Acknowledge chunk receipt
