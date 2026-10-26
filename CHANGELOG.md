@@ -13,6 +13,9 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - Python is found by trying `python`, `py` and `python3` (`X9_PYTHON` still overrides).
 - `docs/ENGINEERING_NOTES.md`, `CONTRIBUTING.md`, issue and pull request templates.
 
+### Security
+- Transitive dependencies in `the_forge` and `readonly_bridge` updated (`body-parser`, `zod`, `fast-uri`, `ip-address`) so `npm audit` reports 0 again.
+
 ### Changed
 - Search: every word matches in any order, file names are searched, quoted phrases work, results show a date and a marked snippet, and the tool warns when the index is old. The Codex workspace is indexed.
 - The Forge action log and raw chat copies are no longer indexed; readable chat exports are.
