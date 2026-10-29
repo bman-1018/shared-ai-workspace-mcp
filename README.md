@@ -51,6 +51,8 @@ That gives you the Forge: search, session summaries, plan files and chunked savi
 | `C_Drive_ReadOnly` | Claude can read one codebase, plus `git status`, `diff`, `log`, `branch` | Set `READONLY_BRIDGE_DIR` to that folder |
 | `Codex_ReadOnly` | Claude can read `X:\Codex_Workspace` | Delete it if you do not use Codex |
 
+Using Codex (ChatGPT desktop app) or Cline instead? The same entries work there. See [Other apps](docs/CONFIGURATION.md#other-apps-codex-and-cline).
+
 Stuck? See [Troubleshooting](docs/CONFIGURATION.md#troubleshooting). Prefer to have an AI agent do the setup? Use [AGENT_SETUP.md](AGENT_SETUP.md).
 
 ## Security

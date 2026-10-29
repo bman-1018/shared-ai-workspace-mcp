@@ -3,6 +3,7 @@
 The [README](../README.md) quick start gets the Forge running. This page covers everything after that: adding the other servers, changing settings, and fixing problems.
 
 - [Editing the Claude Desktop config](#editing-the-claude-desktop-config)
+- [Other apps: Codex and Cline](#other-apps-codex-and-cline)
 - [What each part does](#what-each-part-does)
 - [Settings (environment variables)](#settings-environment-variables)
 - [Suggested workspace layout](#suggested-workspace-layout)
@@ -25,6 +26,35 @@ The [README](../README.md) quick start gets the Forge running. This page covers 
 5. `command` values use the default Node.js path (`C:\Program Files\nodejs\...`). If Node.js lives elsewhere, change them and use full paths: Claude Desktop may not see your PATH, and a bare `node` or `npx` can fail with `spawn ... ENOENT`.
 6. Save. Every backslash in a JSON path must be doubled (`X:\\Claude_Workspace`); paste the file into a JSON validator if you get errors.
 7. Quit Claude Desktop from the tray icon and reopen it. Closing the window is not enough.
+
+## Other apps: Codex and Cline
+
+The servers are ordinary MCP stdio servers, so any app that can start a local command can run them. Use the same `command`, `args` and `env` as in `claude_desktop_config.example.json`; only the place you enter them changes.
+
+| App | Where to enter the servers | Status |
+|---|---|---|
+| Codex in the ChatGPT desktop app | **Plugins**, then the **MCPs** tab. **Add** creates a server (choose the type that launches a command). The gear icon next to a server edits it, and the switch turns it on or off. | Works. Tested with `The_Forge` and `X9_External_Drive`. |
+| Cline | **MCP Servers**, then edit or add a server. Cline stores them in `%USERPROFILE%\.cline\data\settings\cline_mcp_settings.json`. | Works. Tested with `The_Forge` and `X9_External_Drive`. |
+
+Both apps use forms with the same values as the config file. Here is `The_Forge`:
+
+| Field | Value | Cline's name for it | Codex's name for it |
+|---|---|---|---|
+| Server name | `The_Forge` | Server name | Shown in the list, in lowercase (`the_forge`) |
+| Type | Runs a command on this machine | Server type: **Local** | Fixed when you add the server |
+| Command | `C:\Program Files\nodejs\node.exe` | Command | Command to launch |
+| Argument | `X:\Claude_Workspace\_mcp_tools\the_forge\index.js` | Args | Arguments |
+| Environment variable | key `X9_ROOT`, value `X:\Claude_Workspace` | Environment variables | Environment variables |
+| Everything else | Leave empty | Leave **Enabled** on | Leave passthrough and working directory empty |
+
+- Type paths with single backslashes. Doubling them is only for JSON files.
+- Several arguments (such as `X9_External_Drive` with its folder list): in Codex, press **Add argument** and put one in each box. In Cline, put them all in the one Args box separated by commas.
+- If your drive is not `X:`, set `X9_ROOT` in every app's `The_Forge` entry. Without it the Forge falls back to `X:\Claude_Workspace`.
+- Save, and make sure the server's switch is on.
+
+Several apps can use the same workspace at once, so a summary saved from one shows up in `find_sessions` from the others. Mind the write rule under [Codex access](#codex-access) when you give any app a file server.
+
+**Remote access.** A tunnel such as ngrok can put a server on a public address (over SSE), so a remote or cloud session could reach your files. The author tried this with Codex and went back to the standard local setup above, which is more secure: nothing is exposed to the internet. None of these servers has authentication, so anyone who gets the tunnel address gets the same access as the tool. This is not supported. Read [Remote access](../SECURITY.md#remote-access-is-not-supported) first.
 
 ## What each part does
 
@@ -148,11 +178,12 @@ Work moves by pulling, not pushing: Claude leaves briefs in `09_For_Codex`, Code
 
 ### Codex access
 
-This project does not connect Codex. Claude's half is built in: `find_sessions`, `x9_search` and `Codex_ReadOnly` read the Codex folder on the drive. For Codex to write its summaries and read Claude's notes, Codex itself needs access to the drive:
+Claude's half is built in: `find_sessions`, `x9_search` and `Codex_ReadOnly` read the Codex folder on the drive. For Codex to write its summaries and read Claude's notes, Codex itself needs access to the drive:
 
 | Codex | How it can reach the drive | Status |
 |---|---|---|
-| Desktop app or CLI on the same PC | Directly, as local files, or by starting the servers itself: add them under `[mcp_servers.<name>]` in `~/.codex/config.toml` with the same `command` and `args` as in `claude_desktop_config.example.json`. No URL is needed. | Not tested by this project |
+| ChatGPT desktop app | Add the servers on the **Plugins**, **MCPs** tab, as in [Other apps](#other-apps-codex-and-cline). | Works. Tested by the author. |
+| CLI on the same PC | Directly, as local files, or by starting the servers itself: add them under `[mcp_servers.<name>]` in `~/.codex/config.toml` with the same `command` and `args` as in `claude_desktop_config.example.json`. No URL is needed. | Not tested by this project |
 | Codex in ChatGPT (web) | It runs on OpenAI's servers, so it can only reach an MCP server that has a public HTTPS address | Not supported. See [Remote access](../SECURITY.md#remote-access-is-not-supported) |
 
 To keep the one-way rule on Codex's side, give it write access only to `X:\Codex_Workspace`. For the CLI and desktop app, keep the Claude workspace out of `sandbox_workspace_write.writable_roots`, and do not give a Codex file server the whole drive: with a whole-drive file server or full-access sandbox mode, Codex can write into the Claude workspace, including `_mcp_tools\Hot_Plugins`, whose files the Forge runs. If Codex cannot read the Claude workspace, paste the brief in by hand.
@@ -178,5 +209,5 @@ Anything in `Hot_Plugins` runs on your computer, so read [SECURITY.md](../SECURI
 - **Search says "Bridge execution failed".** Python is not on your PATH. Set `X9_PYTHON`, and run the indexer once so the index file exists.
 - **Search results are old or missing new files.** The result shows when the index was built. The Forge rebuilds it every 6 hours if Python works; check `mcp-server-The_Forge.log` for "Search index rebuild failed", or run the indexer by hand.
 - **`find_sessions` says the Codex folder was not found.** It looks in `Codex_Workspace\02_Outbox` (or `03_Outbox`) next to your Claude workspace. Set `X9_CODEX_ROOT` if the workspace is elsewhere, or `X9_CODEX_OUTBOX` if your results folder has another name.
-- **Nothing is saved to the drive.** Check the drive letter, and that the drive is plugged in before Claude Desktop starts.
+- **Nothing is saved to the drive, or the log says `Cannot create X:\...`.** Check the drive letter, and that the drive is plugged in before the app starts. If your drive is not `X:`, the app's `The_Forge` entry needs `X9_ROOT` set to your workspace folder. Each app has its own entry, so set it in all of them.
 - **JSON errors after editing.** Check for doubled backslashes and missing commas. Paste the file into any JSON validator.
