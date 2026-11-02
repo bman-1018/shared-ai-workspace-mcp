@@ -18,6 +18,8 @@ Everything below works the same in Claude Desktop, Codex (ChatGPT desktop app) a
 
 > Use The Forge's `find_sessions` to search PR105. Read "PR105 research handoff", then the linked handoff and continuation plan. Verify the current PR head before continuing.
 
+(PR105 is pull request #105 in the project being worked on. Searching by PR number finds every note saved about it.)
+
 **Then:** paste that prompt into the other app. It finds the summary, reads the linked files, and picks up where the first one stopped.
 
 Tips:
