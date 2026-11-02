@@ -17,6 +17,7 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - Transitive dependencies in `the_forge` and `readonly_bridge` updated (`body-parser`, `zod`, `fast-uri`, `ip-address`) so `npm audit` reports 0 again.
 
 ### Changed
+- Docs say the workspace can live in any folder (on `C:`, a dedicated partition, or an external drive), explain the "X9" name, and cover moving off `X:`, making a partition, and avoiding OneDrive-synced folders.
 - Search: every word matches in any order, file names are searched, quoted phrases work, results show a date and a marked snippet, and the tool warns when the index is old. The Codex workspace is indexed.
 - The Forge action log and raw chat copies are no longer indexed; readable chat exports are.
 - Tool descriptions and log messages use plain language (no behavior change; tool names are unchanged).

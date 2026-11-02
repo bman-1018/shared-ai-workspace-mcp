@@ -1,17 +1,21 @@
-# Shared AI Workspace MCP: a persistent workspace for Claude on an external drive
+# Shared AI Workspace MCP: a persistent workspace for Claude, shared with Codex
 
 [![CI](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-339933.svg)
 
-Every new chat starts from zero. This repo puts a workspace of plain folders and text files on an external SSD and gives Claude Desktop tools to read it, write to it, search it, and save session summaries into it. Codex or any other tool that can open a folder can use the same files.
+Every new chat starts from zero. This repo puts a workspace of plain folders and text files in one folder on your PC and gives Claude Desktop tools to read it, write to it, search it, and save session summaries into it. Codex or any other tool that can open a folder can use the same files.
+
+The folder can be anywhere: on `C:`, on a partition you set aside for it, or on an external drive. See [Choosing where the workspace lives](docs/CONFIGURATION.md#choosing-where-the-workspace-lives).
+
+Why "X9"? The settings and tool names (`X9_ROOT`, `x9_search`, `X9_External_Drive`) come from the Crucial X9 SSD this was first built on. You do not need that drive, or any external drive.
 
 Windows only. It does not connect web clients (ChatGPT, claude.ai). Not affiliated with Anthropic or OpenAI.
 
 ## Quick start
 
-**You need:** Windows 10/11, a drive assigned the letter **X:** (another letter works, see [Settings](docs/CONFIGURATION.md#settings-environment-variables)), [Node.js](https://nodejs.org) 22+, and optionally [Python](https://www.python.org) 3.10+ (search) and [Git](https://git-scm.com).
+**You need:** Windows 10/11, a place for the workspace (the steps use `X:\Claude_Workspace`; for `C:` or another drive letter, see [Choosing where the workspace lives](docs/CONFIGURATION.md#choosing-where-the-workspace-lives)), [Node.js](https://nodejs.org) 22+, and optionally [Python](https://www.python.org) 3.10+ (search) and [Git](https://git-scm.com).
 
 **1. Get the code and create the folders.** In Command Prompt:
 

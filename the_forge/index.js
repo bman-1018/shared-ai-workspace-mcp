@@ -15,7 +15,7 @@ import { findPython } from "./find_python.js";
 const execFilePromise = util.promisify(execFile);
 
 // --- CONFIGURATION ---
-// Workspace root on your external drive. Set X9_ROOT in claude_desktop_config.json
+// Workspace root (any folder or drive). Set X9_ROOT in claude_desktop_config.json
 // to use a different drive letter or folder (default: X:\Claude_Workspace).
 const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
 // Sibling folders of this one (the_forge/..): resolved relative to this file so
