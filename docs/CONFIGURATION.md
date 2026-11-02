@@ -16,13 +16,15 @@ The [README](../README.md) quick start gets the Forge running. This page covers 
 
 ## Choosing where the workspace lives
 
-The workspace is an ordinary folder. Nothing in the code depends on the kind of drive it is on or on how much space the drive has; the files are mostly text, and the workspace uses only what it needs. Pick whichever of these suits you:
+The recommended setup is an external SSD with its own drive letter. That is how this project is built and used: the AI files stay separate from everything else and move with you between PCs.
+
+You do not need one, though. The workspace is an ordinary folder, and nothing in the code depends on the kind of drive it is on or on how much space the drive has; the files are mostly text, and the workspace uses only what it needs.
 
 | Location | Example | Good for | Keep in mind |
 |---|---|---|---|
+| **An external SSD (recommended)** | `X:\Claude_Workspace` | Keeping AI files separate and carrying them between PCs | Must be plugged in before Claude Desktop starts. |
+| A partition set aside for it | `X:\Claude_Workspace` | The same separation and drive letter without an external drive | Same physical disk as `C:`, so it is not a backup and cannot move to another PC. |
 | A folder on `C:` | `C:\AI_Workspace\Claude_Workspace` | Trying it out, a laptop with one drive | Nothing to set up. Shares space and backups with everything else on `C:`. |
-| A partition set aside for it | `X:\Claude_Workspace` | Keeping AI files separate, with their own drive letter | Same physical disk as `C:`, so it is not a backup and cannot move to another PC. |
-| An external drive | `X:\Claude_Workspace` | Carrying the workspace between PCs | Must be plugged in before Claude Desktop starts. |
 
 The "X9" in the names comes from the Crucial X9 SSD this project was first built on. Any drive or folder works.
 

@@ -1,6 +1,6 @@
 # Workspace templates
 
-Two ready-to-copy folder layouts. They work in any folder: on `C:`, on a partition of their own, or on an external drive. The examples use drive `X:`.
+Two ready-to-copy folder layouts, meant for an external SSD. They also work on a partition of their own or in a folder on `C:`. The examples use drive `X:`.
 
 | Template | Used by | Purpose |
 |---|---|---|
