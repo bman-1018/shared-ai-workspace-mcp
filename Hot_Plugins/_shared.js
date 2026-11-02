@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Root of your workspace on the external drive. Override with the X9_ROOT
+// Root of your workspace (any folder or drive). Override with the X9_ROOT
 // environment variable (set it in claude_desktop_config.json).
 export const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
 

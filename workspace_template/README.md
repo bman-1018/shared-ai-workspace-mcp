@@ -1,19 +1,19 @@
 # Workspace templates
 
-Two ready-to-copy folder layouts for an external SSD (examples use drive `X:`):
+Two ready-to-copy folder layouts, meant for an external SSD. They also work on a partition of their own or in a folder on `C:`. The examples use drive `X:`.
 
 | Template | Used by | Purpose |
 |---|---|---|
 | `claude/` | Claude Desktop (chat, Cowork) and Claude Code | Shared memory, projects, session notes and handoff briefs |
 | `codex/` | Codex | Active tasks and an outbox, so work can move between agents as plain files |
 
-The problem this solves: chats and agents forget everything between sessions and do not share a memory. Keeping the memory as plain files on a drive that every tool can reach fixes both.
+The problem this solves: chats and agents forget everything between sessions and do not share a memory. Keeping the memory as plain files in a folder that every tool can reach fixes both.
 
 ## How to use
 
 1. Copy `claude/` to `X:\Claude_Workspace` and `codex/` to `X:\Codex_Workspace`.
 2. Open `X:\Claude_Workspace\CLAUDE.md` and fill in the `<...>` placeholders.
-3. Do the same for `X:\Codex_Workspace\AGENTS.md`.
+3. Open `X:\Codex_Workspace\AGENTS.md`. If your workspaces are not on `X:`, replace the `X:\...` paths with yours.
 4. Point the Forge at the Claude workspace with `X9_ROOT` (see the main README).
 
 Empty folders contain a `.gitkeep` file. Delete them if you like.

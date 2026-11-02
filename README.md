@@ -1,17 +1,17 @@
-# Shared AI Workspace MCP: a persistent workspace for Claude on an external drive
+# Shared AI Workspace MCP: one persistent workspace for Claude, Codex and Cline
 
 [![CI](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/bman-1018/shared-ai-workspace-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-339933.svg)
 
-Every new chat starts from zero. This repo puts a workspace of plain folders and text files on an external SSD and gives Claude Desktop tools to read it, write to it, search it, and save session summaries into it. Codex or any other tool that can open a folder can use the same files.
+Every new chat starts from zero, and each AI app keeps its own memory. This repo gives Claude Desktop, Codex and Cline (any model, your own API key) one shared workspace of plain text files, with MCP tools to read, write and search it and save session summaries, so context carries over between sessions and apps.
 
-Windows only. It does not connect web clients (ChatGPT, claude.ai). Not affiliated with Anthropic or OpenAI.
+Built for an external SSD; a partition or a folder on `C:` works too ([where to put it](docs/CONFIGURATION.md#choosing-where-the-workspace-lives)). Windows only. No web clients (ChatGPT, claude.ai). Not affiliated with Anthropic or OpenAI.
 
 ## Quick start
 
-**You need:** Windows 10/11, a drive assigned the letter **X:** (another letter works, see [Settings](docs/CONFIGURATION.md#settings-environment-variables)), [Node.js](https://nodejs.org) 22+, and optionally [Python](https://www.python.org) 3.10+ (search) and [Git](https://git-scm.com).
+**You need:** Windows 10/11, a drive for the workspace (the steps use `X:`; [other locations](docs/CONFIGURATION.md#choosing-where-the-workspace-lives)), [Node.js](https://nodejs.org) 22+, and optionally [Python](https://www.python.org) 3.10+ (search) and [Git](https://git-scm.com).
 
 **1. Get the code and create the folders.** In Command Prompt:
 
@@ -43,7 +43,7 @@ No Git? Download the ZIP from GitHub and extract it to `X:\Claude_Workspace\_mcp
 
 **4. Try it.** Ask Claude "Run hello_forge", then "Map the root of my workspace."
 
-That gives you the Forge: search, session summaries, plan files and chunked saving. The other three servers are optional and are already filled in for you in [`claude_desktop_config.example.json`](claude_desktop_config.example.json):
+That gives you the Forge: search, session summaries, plans and chunked saving. Three optional servers are prefilled in [`claude_desktop_config.example.json`](claude_desktop_config.example.json):
 
 | Server | Adds | Change before using |
 |---|---|---|
@@ -51,9 +51,7 @@ That gives you the Forge: search, session summaries, plan files and chunked savi
 | `C_Drive_ReadOnly` | Claude can read one codebase, plus `git status`, `diff`, `log`, `branch` | Set `READONLY_BRIDGE_DIR` to that folder |
 | `Codex_ReadOnly` | Claude can read `X:\Codex_Workspace` | Delete it if you do not use Codex |
 
-Using Codex (ChatGPT desktop app) or Cline instead? The same entries work there. See [Other apps](docs/CONFIGURATION.md#other-apps-codex-and-cline).
-
-Stuck? See [Troubleshooting](docs/CONFIGURATION.md#troubleshooting). Prefer to have an AI agent do the setup? Use [AGENT_SETUP.md](AGENT_SETUP.md).
+Codex or Cline? The same entries work: see [Other apps](docs/CONFIGURATION.md#other-apps-codex-and-cline). Stuck? See [Troubleshooting](docs/CONFIGURATION.md#troubleshooting), or let an AI agent do the setup with [AGENT_SETUP.md](AGENT_SETUP.md).
 
 ## Security
 
@@ -68,7 +66,7 @@ Read [SECURITY.md](SECURITY.md) before using this.
 
 | Document | Contents |
 |---|---|
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config walkthrough, every setting, folder layout, what each part does, search, Codex, troubleshooting |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Setup details, settings, folder layout, search, Codex and Cline, troubleshooting |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, rules for plugins |
 | [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md) | Design trade-offs |
 | [SECURITY.md](SECURITY.md) | Threat model and review findings |
