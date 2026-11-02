@@ -27,7 +27,8 @@ fs.writeFileSync(path.join(SESS, "outputs", "report.txt"), "an output file");
 fs.writeFileSync(path.join(SESS, "cookies.json"), "{}");
 fs.writeFileSync(path.join(SESS, "debug", "audit.jsonl"), "debug copy that must be skipped");
 
-const env = { ...process.env, APPDATA, X9_ROOT: WS, USERPROFILE: ROOT, HOME: ROOT };
+// X9_CLAUDE_DATA_DIR points the sweeper at the fake Claude folder on every OS.
+const env = { ...process.env, APPDATA, X9_CLAUDE_DATA_DIR: path.join(APPDATA, "Claude"), X9_ROOT: WS, USERPROFILE: ROOT, HOME: ROOT };
 const run = (script) => execFileSync(process.execPath, [script], { cwd: OBSERVER, env, stdio: "pipe" });
 function allFiles(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
@@ -66,8 +67,17 @@ test("the flattener writes a readable markdown file", () => {
   assert.match(text, /hello from the assistant/);
 });
 
-test("the sweeper stops cleanly when APPDATA is missing", () => {
+test("on Windows the sweeper stops cleanly when APPDATA is missing", { skip: process.platform !== "win32" }, () => {
   const noApp = { ...process.env, X9_ROOT: WS };
   delete noApp.APPDATA;
+  delete noApp.X9_CLAUDE_DATA_DIR;
   assert.throws(() => execFileSync(process.execPath, ["vault_sweeper.js"], { cwd: OBSERVER, env: noApp, stdio: "pipe" }));
+});
+
+test("the sweeper does nothing when Claude Desktop has no session folder", () => {
+  const empty = path.join(ROOT, "NoClaude");
+  fs.mkdirSync(empty, { recursive: true });
+  const ws = path.join(ROOT, "Empty_Workspace");
+  execFileSync(process.execPath, ["vault_sweeper.js"], { cwd: OBSERVER, env: { ...env, X9_CLAUDE_DATA_DIR: empty, X9_ROOT: ws }, stdio: "pipe" });
+  assert.deepEqual(allFiles(path.join(ws, "07_Chat_History", "Cowork")), []);
 });

@@ -8,8 +8,11 @@ from pathlib import Path
 
 import x9_vectors
 
-# Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
-X9_ROOT = os.environ.get("X9_ROOT") or r"X:\Claude_Workspace"
+# Same root as The Forge: X9_ROOT, or the default for this operating system
+# (X:\Claude_Workspace on Windows, ~/AI_Workspace/Claude_Workspace elsewhere).
+X9_ROOT = os.environ.get("X9_ROOT") or (
+    r"X:\Claude_Workspace" if os.name == "nt"
+    else os.path.join(os.path.expanduser("~"), "AI_Workspace", "Claude_Workspace"))
 # Default: x9_vault.db next to this script. Override with X9_DB_PATH.
 DB_PATH = os.environ.get("X9_DB_PATH") or str(Path(__file__).resolve().parent / "x9_vault.db")
 

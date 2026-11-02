@@ -1,7 +1,7 @@
 {
   "name": "shared-ai-workspace-mcp",
   "version": "1.0.0",
-  "description": "MCP servers and plugins that give Claude Desktop a persistent workspace on an external drive.",
+  "description": "MCP servers and plugins that give Claude Desktop, Codex and Cline one persistent, searchable workspace.",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -25,6 +25,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "install:all": "npm ci --prefix the_forge && npm ci --prefix readonly_bridge && npm ci --prefix The_Observer",
     "audit:all": "npm audit --prefix the_forge && npm audit --prefix readonly_bridge && npm audit --prefix The_Observer",
     "test": "node --test"

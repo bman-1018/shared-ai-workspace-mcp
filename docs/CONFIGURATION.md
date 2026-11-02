@@ -3,7 +3,10 @@
 The [README](../README.md) quick start gets the Forge running. This page covers everything after that: adding the other servers, changing settings, and fixing problems.
 
 - [Choosing where the workspace lives](#choosing-where-the-workspace-lives)
+- [The setup script](#the-setup-script)
+- [Manual setup](#manual-setup)
 - [Editing the Claude Desktop config](#editing-the-claude-desktop-config)
+- [macOS and Linux](#macos-and-linux)
 - [Other apps: Codex and Cline](#other-apps-codex-and-cline)
 - [What each part does](#what-each-part-does)
 - [Settings (environment variables)](#settings-environment-variables)
@@ -31,7 +34,7 @@ The "X9" in the names comes from the Crucial X9 SSD this project was first built
 ### Using a location other than `X:\Claude_Workspace`
 
 1. Pick a parent folder and keep both workspaces in it, for example `C:\AI_Workspace\Claude_Workspace` and `C:\AI_Workspace\Codex_Workspace`. The tools look for the Codex workspace next to the Claude one unless you set `X9_CODEX_ROOT`.
-2. In the README quick start, replace `X:\Claude_Workspace` with your folder in every command.
+2. Easiest: run `npm run setup` and enter your folder. It fills in every path below, including `AGENTS.md`. The rest of this list is for doing it by hand.
 3. In `claude_desktop_config.json`, set `X9_ROOT` to your folder in the `The_Forge` entry and change every `X:\...` path in the other entries: the script paths in `args`, the folder list of `X9_External_Drive`, and `READONLY_BRIDGE_DIR` of `Codex_ReadOnly`. `X9_ROOT` only reaches the Forge and its plugins; the other servers use the literal paths in their entries.
 4. In `Codex_Workspace\AGENTS.md`, replace the `X:\...` paths with yours.
 5. Avoid folders that OneDrive syncs, such as Documents and Desktop on many Windows installs. Syncing can lock files while the servers write them and can create duplicate "conflicted" copies. A folder such as `C:\AI_Workspace` is not synced unless you add it.
@@ -44,6 +47,42 @@ Back up first: resizing a partition is safe in normal use, but a mistake here af
 2. Right-click the `C:` partition, choose **Shrink Volume**, and enter the size you want in MB (for example `51200` for 50 GB). Windows may offer less than the free space because some system files cannot be moved.
 3. Right-click the new **Unallocated** space, choose **New Simple Volume**, assign a drive letter (for example `X:`), and format it as NTFS.
 4. Follow the README quick start. If you chose a letter other than `X:`, follow the steps above as well.
+
+## The setup script
+
+`npm run setup` (in the repository folder) does the quick start for you on Windows, macOS and Linux. It uses only Node.js, so it runs before anything else is installed.
+
+1. Asks where the workspace goes (default `X:\Claude_Workspace` on Windows, `~/AI_Workspace/Claude_Workspace` elsewhere), whether you use Codex, which project folder Claude may read, and whether to add the file server.
+2. Copies `workspace_template` into the workspace. Files that already exist are never overwritten, so it is safe to run again. Example `X:\...` paths in the new `CLAUDE.md`, `session_start.md` and `AGENTS.md` are replaced with your real folders.
+3. Runs `npm run install:all`, and reports whether Python is there for search.
+4. Copies Claude Desktop's config to `claude_desktop_config.json.backup-<date-time>`, then adds the server entries. Entries you already have, and every other setting, are kept. An entry with the same name is left alone unless you pass `--force`. If the file is not valid JSON, it stops and changes nothing.
+5. Prints the same entries as JSON (Cline) and TOML (Codex CLI's `~/.codex/config.toml`).
+
+`command` is set to the full path of the Node.js that ran the setup, so Claude Desktop does not depend on your PATH.
+
+Options, all optional: `--root <folder>`, `--codex`, `--code-dir <folder>`, `--files`, `--config <file>` (another config file), `--no-config`, `--skip-install`, `--semantic` (installs [semantic search](#semantic-search-optional) into a virtual environment), `--force`, `--yes` (no questions), `--dry-run` (change nothing, show the plan). Pass them after `--`, for example `npm run setup -- --dry-run`.
+
+## Manual setup
+
+The same steps by hand, on Windows. In Command Prompt:
+
+```
+git clone https://github.com/bman-1018/shared-ai-workspace-mcp.git X:\Claude_Workspace\_mcp_tools
+xcopy /E /I X:\Claude_Workspace\_mcp_tools\workspace_template\claude X:\Claude_Workspace
+mkdir X:\Claude_Workspace\07_Chat_History X:\Claude_Workspace\08_Cowork_Handoff
+cd /d X:\Claude_Workspace\_mcp_tools
+npm run install:all
+```
+
+Then add this inside `mcpServers` in `%APPDATA%\Claude\claude_desktop_config.json` (create the file if it is missing), and see the next section for the other servers:
+
+```json
+"The_Forge": {
+  "command": "C:\\Program Files\\nodejs\\node.exe",
+  "args": ["X:\\Claude_Workspace\\_mcp_tools\\the_forge\\index.js"],
+  "env": { "X9_ROOT": "X:\\Claude_Workspace" }
+}
+```
 
 ## Editing the Claude Desktop config
 
@@ -58,6 +97,15 @@ Back up first: resizing a partition is safe in normal use, but a mistake here af
 5. `command` values use the default Node.js path (`C:\Program Files\nodejs\...`). If Node.js lives elsewhere, change them and use full paths: Claude Desktop may not see your PATH, and a bare `node` or `npx` can fail with `spawn ... ENOENT`.
 6. Save. Every backslash in a JSON path must be doubled (`X:\\Claude_Workspace`); paste the file into a JSON validator if you get errors.
 7. Quit Claude Desktop from the tray icon and reopen it. Closing the window is not enough.
+
+## macOS and Linux
+
+New, and so far tested only in CI: the tests and the setup script run on macOS, Linux and Windows on every change, including starting the Forge and saving and finding a session summary. Nobody has yet confirmed the desktop apps on a Mac or Linux. If you try it, please [open an issue](https://github.com/bman-1018/shared-ai-workspace-mcp/issues) either way.
+
+- Run `npm run setup`. The default workspace is `~/AI_Workspace/Claude_Workspace`. For an external SSD, enter its folder instead, for example `/Volumes/X9/Claude_Workspace` on a Mac.
+- macOS: Claude Desktop's config is `~/Library/Application Support/Claude/claude_desktop_config.json`, and the Observer reads Cowork logs from that folder too.
+- Linux: there is no official Claude Desktop. Use Cline or Codex with the entries the setup prints. Community Claude Desktop builds keep their config in `~/.config/Claude`; pass `--config` if yours is elsewhere.
+- Python is usually `python3`; the Forge finds it on its own.
 
 ## Other apps: Codex and Cline
 
@@ -123,7 +171,8 @@ Set these in the `env` block of the server entry in `claude_desktop_config.json`
 
 | Variable | Used by | Meaning |
 |---|---|---|
-| `X9_ROOT` | Forge, plugins, Observer, search | Workspace folder. Default `X:\Claude_Workspace`. |
+| `X9_ROOT` | Forge, plugins, Observer, search | Workspace folder. Default `X:\Claude_Workspace` on Windows, `~/AI_Workspace/Claude_Workspace` on macOS and Linux. |
+| `X9_CLAUDE_DATA_DIR` | Observer | Claude Desktop's data folder, where the Cowork logs are read from. Default `%APPDATA%\Claude` on Windows, `~/Library/Application Support/Claude` on macOS. |
 | `X9_PYTHON` | search plugin | Python command if `python` is not on PATH, for example `py`. |
 | `X9_DB_PATH` | search | Where the index file lives. Default: next to the Python scripts. |
 | `READONLY_BRIDGE_DIR` | readonly_bridge | **Required.** The one folder the bridge may read. |

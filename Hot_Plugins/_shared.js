@@ -7,10 +7,12 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { workspaceRoot } from "../the_forge/platform_paths.js";
 
 // Root of your workspace (any folder or drive). Override with the X9_ROOT
-// environment variable (set it in claude_desktop_config.json).
-export const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
+// environment variable (set it in claude_desktop_config.json). The default depends on
+// the operating system, see the_forge/platform_paths.js.
+export const X9_ROOT = workspaceRoot();
 
 // The Codex workspace, a sibling of the Claude workspace. Claude only ever reads it.
 // Override with X9_CODEX_ROOT.
