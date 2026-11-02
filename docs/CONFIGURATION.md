@@ -2,6 +2,7 @@
 
 The [README](../README.md) quick start gets the Forge running. This page covers everything after that: adding the other servers, changing settings, and fixing problems.
 
+- [Choosing where the workspace lives](#choosing-where-the-workspace-lives)
 - [Editing the Claude Desktop config](#editing-the-claude-desktop-config)
 - [Other apps: Codex and Cline](#other-apps-codex-and-cline)
 - [What each part does](#what-each-part-does)
@@ -13,6 +14,37 @@ The [README](../README.md) quick start gets the Forge running. This page covers 
 - [Adding your own tool](#adding-your-own-tool)
 - [Troubleshooting](#troubleshooting)
 
+## Choosing where the workspace lives
+
+The recommended setup is an external SSD with its own drive letter. That is how this project is built and used: the AI files stay separate from everything else and move with you between PCs.
+
+You do not need one, though. The workspace is an ordinary folder, and nothing in the code depends on the kind of drive it is on or on how much space the drive has; the files are mostly text, and the workspace uses only what it needs.
+
+| Location | Example | Good for | Keep in mind |
+|---|---|---|---|
+| **An external SSD (recommended)** | `X:\Claude_Workspace` | Keeping AI files separate and carrying them between PCs | Must be plugged in before Claude Desktop starts. |
+| A partition set aside for it | `X:\Claude_Workspace` | The same separation and drive letter without an external drive | Same physical disk as `C:`, so it is not a backup and cannot move to another PC. |
+| A folder on `C:` | `C:\AI_Workspace\Claude_Workspace` | Trying it out, a laptop with one drive | Nothing to set up. Shares space and backups with everything else on `C:`. |
+
+The "X9" in the names comes from the Crucial X9 SSD this project was first built on. Any drive or folder works.
+
+### Using a location other than `X:\Claude_Workspace`
+
+1. Pick a parent folder and keep both workspaces in it, for example `C:\AI_Workspace\Claude_Workspace` and `C:\AI_Workspace\Codex_Workspace`. The tools look for the Codex workspace next to the Claude one unless you set `X9_CODEX_ROOT`.
+2. In the README quick start, replace `X:\Claude_Workspace` with your folder in every command.
+3. In `claude_desktop_config.json`, set `X9_ROOT` to your folder in the `The_Forge` entry and change every `X:\...` path in the other entries: the script paths in `args`, the folder list of `X9_External_Drive`, and `READONLY_BRIDGE_DIR` of `Codex_ReadOnly`. `X9_ROOT` only reaches the Forge and its plugins; the other servers use the literal paths in their entries.
+4. In `Codex_Workspace\AGENTS.md`, replace the `X:\...` paths with yours.
+5. Avoid folders that OneDrive syncs, such as Documents and Desktop on many Windows installs. Syncing can lock files while the servers write them and can create duplicate "conflicted" copies. A folder such as `C:\AI_Workspace` is not synced unless you add it.
+
+### Making a partition for it (optional)
+
+Back up first: resizing a partition is safe in normal use, but a mistake here affects your whole drive.
+
+1. Press **Win + R**, enter `diskmgmt.msc`.
+2. Right-click the `C:` partition, choose **Shrink Volume**, and enter the size you want in MB (for example `51200` for 50 GB). Windows may offer less than the free space because some system files cannot be moved.
+3. Right-click the new **Unallocated** space, choose **New Simple Volume**, assign a drive letter (for example `X:`), and format it as NTFS.
+4. Follow the README quick start. If you chose a letter other than `X:`, follow the steps above as well.
+
 ## Editing the Claude Desktop config
 
 1. Press **Win + R**, type `%APPDATA%\Claude`, press Enter.
@@ -22,7 +54,7 @@ The [README](../README.md) quick start gets the Forge running. This page covers 
    - `C_Drive_ReadOnly`: set `READONLY_BRIDGE_DIR` to the project folder Claude may read, or delete the entry.
    - `Codex_ReadOnly`: the same bridge started a second time on `X:\Codex_Workspace`. Delete it if you do not use Codex.
    - `X9_External_Drive`: every folder it lists must exist (see [Suggested workspace layout](#suggested-workspace-layout)). It lists subfolders on purpose and leaves out `_mcp_tools` and `Claude_Plugins`, so Claude cannot use the general file tools to add a plugin that runs on your PC. The trade-off is that files at the workspace root (such as `CLAUDE.md`) are not reachable through this server. Read [SECURITY.md](../SECURITY.md) before changing the list.
-   - Different drive letter: change it in every path and set `X9_ROOT`. Nothing else in the code needs to change.
+   - Different drive letter or folder: change it in every path and set `X9_ROOT`. See [Using a location other than `X:\Claude_Workspace`](#using-a-location-other-than-xclaude_workspace). Nothing in the code needs to change.
 5. `command` values use the default Node.js path (`C:\Program Files\nodejs\...`). If Node.js lives elsewhere, change them and use full paths: Claude Desktop may not see your PATH, and a bare `node` or `npx` can fail with `spawn ... ENOENT`.
 6. Save. Every backslash in a JSON path must be doubled (`X:\\Claude_Workspace`); paste the file into a JSON validator if you get errors.
 7. Quit Claude Desktop from the tray icon and reopen it. Closing the window is not enough.
@@ -209,5 +241,6 @@ Anything in `Hot_Plugins` runs on your computer, so read [SECURITY.md](../SECURI
 - **Search says "Bridge execution failed".** Python is not on your PATH. Set `X9_PYTHON`, and run the indexer once so the index file exists.
 - **Search results are old or missing new files.** The result shows when the index was built. The Forge rebuilds it every 6 hours if Python works; check `mcp-server-The_Forge.log` for "Search index rebuild failed", or run the indexer by hand.
 - **`find_sessions` says the Codex folder was not found.** It looks in `Codex_Workspace\02_Outbox` (or `03_Outbox`) next to your Claude workspace. Set `X9_CODEX_ROOT` if the workspace is elsewhere, or `X9_CODEX_OUTBOX` if your results folder has another name.
-- **Nothing is saved to the drive, or the log says `Cannot create X:\...`.** Check the drive letter, and that the drive is plugged in before the app starts. If your drive is not `X:`, the app's `The_Forge` entry needs `X9_ROOT` set to your workspace folder. Each app has its own entry, so set it in all of them.
+- **Nothing is saved to the drive, or the log says `Cannot create X:\...`.** Check the drive letter, and that the drive is plugged in before the app starts. If your workspace is not on `X:`, the app's `The_Forge` entry needs `X9_ROOT` set to your workspace folder. Each app has its own entry, so set it in all of them.
+- **Files show up twice with "conflicted" or a PC name in the file name.** The workspace is in a folder that OneDrive syncs. Move it to an unsynced folder such as `C:\AI_Workspace` and update the paths in your config.
 - **JSON errors after editing.** Check for doubled backslashes and missing commas. Paste the file into any JSON validator.

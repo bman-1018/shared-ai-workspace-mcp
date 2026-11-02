@@ -1,5 +1,7 @@
 # Codex workspace instructions
 
+<!-- The paths below assume the workspaces are on X:. If yours are elsewhere (for example C:\AI_Workspace), replace every X:\ with that location. -->
+
 ## Purpose
 This folder is Codex's own workspace. The Claude workspace is at `X:\Claude_Workspace`.
 
