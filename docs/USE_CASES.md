@@ -20,7 +20,11 @@ Everything below works the same in Claude Desktop, Codex (ChatGPT desktop app) a
 
 (PR105 is pull request #105 in the project being worked on. Putting the PR number in titles and tags makes all the notes about it easy to find.)
 
-**Then:** paste that prompt into the other app. It finds the summary, reads the linked files, and picks up where the first one stopped.
+**Then:** paste that prompt into the other app. A short request works too:
+
+> Pull in what Codex saved to the Forge.
+
+In a real session, Claude answered that by searching its past sessions and the workspace, finding the newest handoff, reading it and the continuation plan, and checking that the PR and the local files still matched before carrying on.
 
 Tips:
 - Asking the first app to write the prompt works better than writing it yourself: it knows the exact titles it saved.
