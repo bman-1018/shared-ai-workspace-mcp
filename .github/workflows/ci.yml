@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         # The current LTS lines: 24 (active) and 22 (maintenance). Node 20 reached end of life in April 2026.
         node: [22, 24]
     steps:

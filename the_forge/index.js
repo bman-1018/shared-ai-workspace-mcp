@@ -11,13 +11,15 @@ import util from "util";
 import { formatLogLine } from "./log_sanitize.js";
 import { startIndexRefresh } from "./index_refresh.js";
 import { findPython } from "./find_python.js";
+import { workspaceRoot } from "./platform_paths.js";
 
 const execFilePromise = util.promisify(execFile);
 
 // --- CONFIGURATION ---
 // Workspace root (any folder or drive). Set X9_ROOT in claude_desktop_config.json
-// to use a different drive letter or folder (default: X:\Claude_Workspace).
-const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
+// to use a different drive letter or folder. Default: X:\Claude_Workspace on Windows,
+// ~/AI_Workspace/Claude_Workspace elsewhere (see platform_paths.js).
+const X9_ROOT = workspaceRoot();
 // Sibling folders of this one (the_forge/..): resolved relative to this file so
 // the repo works wherever you put it.
 const MCP_TOOLS_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

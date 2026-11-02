@@ -67,7 +67,7 @@ A security review was done in October 2026 before this repo was released. It was
 - Files at the workspace root, such as `CLAUDE.md`, are not reachable through `X9_External_Drive` with the example config. Claude Code reads `CLAUDE.md` on its own. If you want Claude Desktop to edit root files, add the workspace root to the server's folder list and accept the plugin risk described above.
 - The folder `02_Raw_Inputs` is described as read-only, but that is a convention for the AI, not something the tools enforce.
 - The Forge reloads plugins by importing a new copy of the file each time. Many reloads in one long session use more memory until you restart Claude Desktop.
-- The Forge and bridge are plain Node programs and may run elsewhere, but only Windows is supported and tested for the Observer and the setup instructions.
+- Windows is the main platform. macOS and Linux run the same code and are tested in CI (including the setup script), but have not yet been confirmed with the desktop apps.
 
 ## Remote access is not supported
 
