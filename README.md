@@ -66,6 +66,7 @@ Read [SECURITY.md](SECURITY.md) before using this.
 
 | Document | Contents |
 |---|---|
+| [docs/USE_CASES.md](docs/USE_CASES.md) | Handoffs, local-only files, finding old context |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Setup details, settings, folder layout, search, Codex and Cline, troubleshooting |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, rules for plugins |
 | [docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md) | Design trade-offs |

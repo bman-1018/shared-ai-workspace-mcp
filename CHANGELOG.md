@@ -5,6 +5,7 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Added
+- `docs/USE_CASES.md`: short walkthroughs of handing work between Claude and Codex, keeping local files off GitHub, finding old context with search, and working from your phone.
 - Optional semantic search for `x9_search`, running entirely on your PC: a small open embedding model (bge-small-en-v1.5) through onnxruntime, embeddings stored in `x9_vectors.db` and reused for unchanged files, hybrid ranking that merges keyword and semantic results, a `mode` option (`hybrid`, `keyword`, `semantic`), and a resumable first build that the Forge continues in the background. Install with `x9_search_engine/requirements-semantic.txt`; without it search stays keyword only.
 - `save_session_summary` and `find_sessions`: written summaries of conversations, saved by Claude and read from both the Claude and Codex workspaces.
 - The search index rebuilds itself in the background (`X9_INDEX_REFRESH_HOURS`, `X9_INDEX_STARTUP_DELAY_MS`) and is swapped in atomically.
