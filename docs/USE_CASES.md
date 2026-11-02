@@ -2,7 +2,7 @@
 
 How the workspace gets used day to day. For setup, see the [README](../README.md) and [CONFIGURATION](CONFIGURATION.md).
 
-Everything below works the same in Claude Desktop, Codex (ChatGPT desktop app) and Cline, because they all run the same Forge on the same drive.
+Everything below works the same in Claude Desktop, Codex (ChatGPT desktop app) and Cline, because they all run the same Forge on the same drive. It works in any session running on your PC. Cloud sessions (Claude Code on the web, Codex in ChatGPT on the web) cannot reach the drive, on purpose: see [Remote access](../SECURITY.md#remote-access-is-not-supported).
 
 ## 1. Hand work from one AI to the other
 
@@ -49,14 +49,6 @@ Keep real secrets out. Session summaries and the Forge's tool log hide secret-lo
 **What happens:** `find_sessions` lists session summaries from both Claude and Codex, newest first. `x9_search` searches every text file in the workspace. With [semantic search](CONFIGURATION.md#semantic-search-optional) installed, it also finds files that mean the same thing in different words.
 
 This is the main reason to save a summary at the end of every real work session: a later chat in either app can find it.
-
-## 4. Work from your phone
-
-**When:** you are away from your desk.
-
-Leave the PC on with the desktop app running, and continue a session on it from your phone. The session runs on your PC, so it has the Forge and the drive, and everything above works.
-
-Sessions that run in the cloud (Claude Code on the web, Codex in ChatGPT on the web) cannot reach the drive. That is on purpose: the servers have no authentication and are not meant to be on the internet. See [Remote access](../SECURITY.md#remote-access-is-not-supported).
 
 ## What to say, at a glance
 
