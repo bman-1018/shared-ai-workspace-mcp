@@ -3,6 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import fs from "fs/promises";
+import { constants as fsConstants } from "fs";
 import path from "path";
 import { execFile } from "child_process";
 import util from "util";
@@ -63,7 +64,9 @@ async function safeResolve(requested) {
 // Read one text file with a size limit. Rejects folders and binary files.
 async function readTextLimited(realPath, maxBytes = MAX_FILE_BYTES) {
   // Check and read through one open handle, so the file cannot be swapped in between.
-  const handle = await fs.open(realPath, "r");
+  // realPath is already resolved, so a link here means it was swapped after the check: O_NOFOLLOW refuses it.
+  // O_NONBLOCK keeps a named pipe from hanging the open; the isFile check then rejects it.
+  const handle = await fs.open(realPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0));
   let buf;
   try {
     const st = await handle.stat();

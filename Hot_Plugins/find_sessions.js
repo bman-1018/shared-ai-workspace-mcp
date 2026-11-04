@@ -149,7 +149,8 @@ async function readOne(id) {
   const target = resolveInside(src.dir, m[2]);
   // Open first, then check the open handle, so the file cannot be swapped between the check and the read.
   // O_NOFOLLOW refuses a symlink at open time where the platform has it; the lstat below covers the rest.
-  const handle = await fs.open(target, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  // O_NONBLOCK keeps a named pipe from hanging the open; the isFile check then rejects it.
+  const handle = await fs.open(target, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0));
   let text;
   let st;
   try {
