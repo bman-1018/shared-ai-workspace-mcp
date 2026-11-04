@@ -62,12 +62,19 @@ async function safeResolve(requested) {
 
 // Read one text file with a size limit. Rejects folders and binary files.
 async function readTextLimited(realPath, maxBytes = MAX_FILE_BYTES) {
-  const st = await fs.stat(realPath);
-  if (!st.isFile()) throw new Error("Not a file.");
-  if (st.size > maxBytes) {
-    throw new Error(`File is ${st.size} bytes, over the ${maxBytes} byte limit.`);
+  // Check and read through one open handle, so the file cannot be swapped in between.
+  const handle = await fs.open(realPath, "r");
+  let buf;
+  try {
+    const st = await handle.stat();
+    if (!st.isFile()) throw new Error("Not a file.");
+    if (st.size > maxBytes) {
+      throw new Error(`File is ${st.size} bytes, over the ${maxBytes} byte limit.`);
+    }
+    buf = await handle.readFile();
+  } finally {
+    await handle.close();
   }
-  const buf = await fs.readFile(realPath);
   if (buf.subarray(0, 8192).includes(0)) throw new Error("Binary file, not shown.");
   return buf.toString("utf-8");
 }

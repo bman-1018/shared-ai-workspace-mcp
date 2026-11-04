@@ -67,6 +67,7 @@ def build_index():
             if time.time() - os.path.getmtime(old) > 86400:
                 os.remove(old)
         except OSError:
+            # Another run may have removed it first, or it is still locked; the next run tries again.
             pass
 
     conn = sqlite3.connect(tmp_path)

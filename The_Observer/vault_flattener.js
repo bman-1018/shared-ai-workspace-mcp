@@ -43,7 +43,7 @@ async function flattenEverything() {
     for (const fileObj of allFiles) {
         try {
             // Session ID from the folder name (local_<hex>), else the start of the file name.
-            let shortId = "log";
+            let shortId;
             const localMatch = fileObj.path.match(/local_[a-f0-9]+/i);
             if (localMatch) {
                 shortId = localMatch[0]; // Extracts exactly "local_0cfab3fb"

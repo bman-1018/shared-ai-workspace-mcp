@@ -8,6 +8,7 @@
 // ============================================================
 
 import fs from "fs/promises";
+import { constants as fsConstants } from "fs";
 import { CLAUDE_SUMMARY_DIR, codexOutboxDir, codexSummaryDir, resolveInside } from "./_shared.js";
 
 export const toolName = "find_sessions";
@@ -60,7 +61,7 @@ export function parseFrontmatter(text) {
     if (v.startsWith("[") && v.endsWith("]")) {
       meta[kv[1].toLowerCase()] = v.slice(1, -1).split(",").map((x) => x.trim()).filter(Boolean);
     } else {
-      let val = v;
+      let val;
       if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) {
         try { val = JSON.parse(v); } catch { val = v.slice(1, -1); }
       } else val = v.replace(/^'|'$/g, "");
@@ -146,12 +147,15 @@ async function readOne(id) {
   const prefix = m[1].toLowerCase();
   const src = sourcesFor(prefix.startsWith("claude") ? "claude" : "codex").find((x) => x.prefix === prefix);
   const target = resolveInside(src.dir, m[2]);
-  const st = await fs.lstat(target);
-  if (st.isSymbolicLink() || !st.isFile()) throw new Error("Not a regular file.");
-  // Read only what is needed: a huge file is never loaded whole.
-  const handle = await fs.open(target, "r");
+  // Open first, then check the open handle, so the file cannot be swapped between the check and the read.
+  // O_NOFOLLOW refuses a symlink at open time where the platform has it; the lstat below covers the rest.
+  const handle = await fs.open(target, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   let text;
+  let st;
   try {
+    st = await handle.stat();
+    if (!st.isFile() || (await fs.lstat(target)).isSymbolicLink()) throw new Error("Not a regular file.");
+    // Read only what is needed: a huge file is never loaded whole.
     const buf = Buffer.alloc(Math.min(st.size, MAX_READ_CHARS * 4));
     const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
     text = buf.subarray(0, bytesRead).toString("utf8");
