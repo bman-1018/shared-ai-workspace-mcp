@@ -6,7 +6,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  parseArgs, buildServers, mergeServers, replacePaths, toToml, FILE_SERVER_FOLDERS,
+  parseArgs, buildServers, mergeServers, replacePaths, toToml, copyTemplate, FILE_SERVER_FOLDERS,
 } from "../scripts/setup.mjs";
 import { startServer } from "./helpers/mcp_stdio.js";
 
@@ -130,4 +130,21 @@ test("end to end: setup creates the workspace and config, and the configured For
   } finally {
     srv.stop();
   }
+});
+
+test("copying the template never overwrites a file and reports only what it created", () => {
+  const src = path.join(ROOT, "tpl-src"), dest = path.join(ROOT, "tpl-dest");
+  fs.mkdirSync(path.join(src, "sub"), { recursive: true });
+  fs.writeFileSync(path.join(src, "a.md"), "template a\n");
+  fs.writeFileSync(path.join(src, "sub", "b.txt"), "template b\n");
+  fs.mkdirSync(dest, { recursive: true });
+  fs.writeFileSync(path.join(dest, "a.md"), "mine\n");
+
+  assert.deepEqual(copyTemplate(src, dest, {}, { dryRun: true }), [path.join(dest, "sub", "b.txt")]);
+  assert.equal(fs.existsSync(path.join(dest, "sub")), false);
+
+  assert.deepEqual(copyTemplate(src, dest), [path.join(dest, "sub", "b.txt")]);
+  assert.equal(fs.readFileSync(path.join(dest, "a.md"), "utf8"), "mine\n");
+  assert.equal(fs.readFileSync(path.join(dest, "sub", "b.txt"), "utf8"), "template b\n");
+  assert.deepEqual(copyTemplate(src, dest), []);
 });

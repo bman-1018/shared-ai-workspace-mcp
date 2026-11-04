@@ -9,7 +9,6 @@
 // Run with --dry-run first to see what it would do. --help lists every option.
 // Only Node built-ins are used, so it runs before anything is installed.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { spawnSync } from "node:child_process";
@@ -160,14 +159,24 @@ export function copyTemplate(src, dest, replacements = {}, { dryRun = false } = 
       const s = path.join(from, e.name);
       const d = path.join(to, e.name);
       if (e.isDirectory()) { walk(s, d); continue; }
-      if (!e.isFile() || fs.existsSync(d)) continue;
-      created.push(d);
-      if (dryRun) continue;
-      if (e.name.endsWith(".md")) {
-        fs.writeFileSync(d, replacePaths(fs.readFileSync(s, "utf8"), replacements), { flag: "wx" });
-      } else {
-        fs.copyFileSync(s, d, fs.constants.COPYFILE_EXCL);
+      if (!e.isFile()) continue;
+      if (dryRun) {
+        if (!fs.existsSync(d)) created.push(d);
+        continue;
       }
+      // No exists-check first: the exclusive write is the check, so a file that appears in
+      // between is never overwritten. EEXIST just means it is already there.
+      try {
+        if (e.name.endsWith(".md")) {
+          fs.writeFileSync(d, replacePaths(fs.readFileSync(s, "utf8"), replacements), { flag: "wx" });
+        } else {
+          fs.copyFileSync(s, d, fs.constants.COPYFILE_EXCL);
+        }
+      } catch (err) {
+        if (err.code === "EEXIST") continue;
+        throw err;
+      }
+      created.push(d);
     }
   };
   walk(src, dest);
