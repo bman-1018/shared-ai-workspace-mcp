@@ -15,6 +15,7 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - `docs/ENGINEERING_NOTES.md`, `CONTRIBUTING.md`, issue and pull request templates.
 
 ### Security
+- `find_sessions` (read) and the read-only bridge check and read a file through one open handle, so it cannot be swapped between the check and the read (CodeQL `js/file-system-race`). Named pipes are refused instead of hanging the call, and the bridge refuses a link swapped in after its path check.
 - Transitive dependencies in `the_forge` and `readonly_bridge` updated (`body-parser`, `zod`, `fast-uri`, `ip-address`) so `npm audit` reports 0 again.
 
 ### Changed
