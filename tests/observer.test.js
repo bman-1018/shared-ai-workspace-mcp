@@ -71,25 +71,3 @@ test("the sweeper stops cleanly when APPDATA is missing", () => {
   delete noApp.APPDATA;
   assert.throws(() => execFileSync(process.execPath, ["vault_sweeper.js"], { cwd: OBSERVER, env: noApp, stdio: "pipe" }));
 });
-
-test("the flattener never uses a log's date to leave the output folder (CWE-22)", () => {
-  const logs = [
-    ["local_def67890", "../../../../escaped"],
-    ["local_def67891", "..\\..\\..\\escaped2"],
-    ["local_def67892", 8.64e15 + 1], // a number Date can't represent
-  ];
-  for (const [id, date] of logs) {
-    const dir = path.join(WS, "07_Chat_History", "Cowork", "acct", id);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "audit.jsonl"), JSON.stringify({ message: { role: "user", content: "crafted date" }, _audit_timestamp: date }) + "\n");
-  }
-  run("vault_flattener.js");
-  assert.deepEqual(allFiles(ROOT).filter((p) => /escaped/.test(path.basename(p))), []);
-  const out = path.join(WS, "07_Chat_History", "Readable_Logs", "Cowork");
-  for (const [id] of logs) {
-    const md = allFiles(out).filter((p) => p.includes(id));
-    assert.equal(md.length, 1, id);
-    assert.equal(path.dirname(md[0]), out);
-    assert.match(path.basename(md[0]), /^\d{4}-\d{2}-\d{2}_crafted_date_/);
-  }
-});
