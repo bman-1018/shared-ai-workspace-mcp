@@ -2,18 +2,23 @@
  * The_Observer/vault_sweeper.js
  * Copies the chat log (audit.jsonl) of each Claude Desktop agent-mode (Cowork)
  * session to 07_Chat_History\Cowork on the drive. Only new or changed logs are copied.
+ * Works wherever Claude Desktop runs (Windows, macOS). If the session folder does not
+ * exist, there is nothing to copy and the script does nothing.
  */
 
 import fs from 'fs-extra';
 import path from 'path';
+import { claudeDataDir, workspaceRoot } from '../the_forge/platform_paths.js';
 
-if (!process.env.APPDATA) {
-    console.error("APPDATA is not set. The Observer only supports Windows.");
+// Claude Desktop's data folder: %APPDATA%\Claude on Windows, ~/Library/Application Support/Claude
+// on macOS. X9_CLAUDE_DATA_DIR overrides it.
+const SOURCE_PROFILE = claudeDataDir();
+if (!SOURCE_PROFILE) {
+    console.error("APPDATA is not set, so the Claude Desktop folder cannot be found. Set X9_CLAUDE_DATA_DIR.");
     process.exit(1);
 }
-const SOURCE_PROFILE = path.join(process.env.APPDATA, 'Claude');
-// Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
-const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\Claude_Workspace");
+// Same root as The Forge: X9_ROOT, or the default for this operating system.
+const X9_ROOT = workspaceRoot();
 const COWORK_DEST = path.join(X9_ROOT, "07_Chat_History", "Cowork");
 
 // Copies ONLY the chat log file (audit.jsonl) from each session. Everything else in

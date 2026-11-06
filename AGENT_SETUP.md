@@ -1,5 +1,7 @@
 # Set up with an AI agent
 
+Easier first: `npm run setup` in the repository folder does these steps on its own, asks the same questions, and backs up your config. See [The setup script](docs/CONFIGURATION.md#the-setup-script). Use the prompt below if you would rather have an agent walk through it.
+
 You can hand the setup to an AI coding agent instead of doing it by hand. Copy the prompt below into an agent that can run commands and edit files on your Windows PC, such as Claude Code, Codex CLI or Cursor. A chat window that cannot touch your computer will not work; use the manual steps in the [README](README.md) instead.
 
 ## Before you paste it

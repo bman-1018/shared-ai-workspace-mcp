@@ -7,9 +7,10 @@
 import fs from 'fs-extra';
 import path from 'path';
 import readline from 'readline';
+import { workspaceRoot } from '../the_forge/platform_paths.js';
 
-// Same root as The Forge: set X9_ROOT to change the drive letter (default X:\Claude_Workspace).
-const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
+// Same root as The Forge: X9_ROOT, or the default for this operating system.
+const X9_ROOT = workspaceRoot();
 const HISTORY_DIR = path.join(X9_ROOT, "07_Chat_History");
 const OUTPUT_DIR = path.join(HISTORY_DIR, "Readable_Logs");
 
