@@ -56,6 +56,13 @@ test("refuses a link that points outside the folder", { skip: linked ? false : "
   assert.doesNotMatch(r.text, /outside secret/);
 });
 
+test("a named pipe is refused without hanging", { skip: process.platform === "win32" ? "no mkfifo on Windows" : false }, async () => {
+  const { execFileSync } = await import("node:child_process");
+  execFileSync("mkfifo", [path.join(PROJ, "pipe.txt")]);
+  const r = await srv.callTool("read_shadow_file", { target_path: "pipe.txt" });
+  assert.equal(r.isError, true);
+});
+
 test("secret-looking files are blocked by default", async () => {
   for (const p of [".env", "key.pem"]) {
     const r = await srv.callTool("read_shadow_file", { target_path: p });

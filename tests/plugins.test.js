@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "x9-plugins-"));
 const WS = path.join(ROOT, "Claude_Workspace");
@@ -90,4 +91,101 @@ test("workspace mapper lists a folder and handles bad input", async () => {
   assert.match(s.tree, /01_Active_Projects/);
   const bad = await mapper.toolHandler({ category: "__proto__" });
   assert.equal(bad.error, true);
+});
+
+// ---- Links already in the workspace must not redirect a write (CWE-59) ----
+// File symlinks need Developer Mode or admin on Windows; folder junctions do not.
+function tryLink(target, link, type) {
+  try { fs.symlinkSync(target, link, type); return true; } catch { return false; }
+}
+const PLUGIN_TEMP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "Hot_Plugins", "_temp");
+
+test("panoptic_push refuses a category folder or sub-folder that is a link", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "x9-outside-"));
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  if (!tryLink(outside, path.join(WS, "03_Final_Outputs"), "junction")) return t.skip("cannot create links here");
+  const r = await push.toolHandler({ filename: "a.md", category: "final_outputs", chunk_data: "x", is_first_chunk: true, is_final_chunk: true });
+  assert.equal(r.error, true);
+  assert.match(r.message, /link/);
+
+  fs.mkdirSync(path.join(WS, "memory"), { recursive: true });
+  assert.ok(tryLink(outside, path.join(WS, "memory", "sub"), "junction"));
+  const r2 = await push.toolHandler({ filename: "sub/b.md", category: "memory", chunk_data: "x", is_first_chunk: true, is_final_chunk: true });
+  assert.equal(r2.error, true);
+  // A folder that doesn't exist yet is never created through a link either.
+  const r3 = await push.toolHandler({ filename: "sub/new/c.md", category: "memory", chunk_data: "x", is_first_chunk: true, is_final_chunk: true });
+  assert.equal(r3.error, true);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
+
+test("panoptic_push refuses a final file or temp part file that is a link", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "x9-outside-"));
+  const victim = path.join(outside, "victim.txt");
+  fs.writeFileSync(victim, "keep");
+  const part = path.join(PLUGIN_TEMP, "memory__part-link.md.part");
+  t.after(() => { fs.rmSync(outside, { recursive: true, force: true }); fs.rmSync(part, { force: true }); });
+  fs.mkdirSync(path.join(WS, "memory"), { recursive: true });
+  if (!tryLink(victim, path.join(WS, "memory", "final-link.md"), "file")) return t.skip("cannot create file symlinks here");
+  const r = await push.toolHandler({ filename: "final-link.md", category: "memory", chunk_data: "overwritten", is_first_chunk: true, is_final_chunk: true });
+  assert.equal(r.error, true);
+  assert.match(r.message, /link/);
+
+  fs.mkdirSync(PLUGIN_TEMP, { recursive: true });
+  assert.ok(tryLink(victim, part, "file"));
+  const r2 = await push.toolHandler({ filename: "part-link.md", category: "memory", chunk_data: "overwritten", is_first_chunk: true, is_final_chunk: false });
+  assert.equal(r2.error, true);
+  // Appending to the part file, and reading it back to assemble it, are refused too.
+  const r3 = await push.toolHandler({ filename: "part-link.md", category: "memory", chunk_data: "more", is_first_chunk: false, is_final_chunk: true });
+  assert.equal(r3.error, true);
+  assert.ok(!fs.existsSync(path.join(WS, "memory", "part-link.md")), "the outside file's contents must not be copied in");
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep");
+});
+
+test("panoptic_push and submit_code_plan refuse a file with another hard link", async (t) => {
+  const victim = path.join(ROOT, "hardlink-victim.txt");
+  fs.writeFileSync(victim, "keep");
+  fs.mkdirSync(path.join(WS, "memory"), { recursive: true });
+  try { fs.linkSync(victim, path.join(WS, "memory", "hard.md")); } catch { return t.skip("cannot create hard links here"); }
+  const r = await push.toolHandler({ filename: "hard.md", category: "memory", chunk_data: "overwritten", is_first_chunk: true, is_final_chunk: true });
+  assert.equal(r.error, true);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep");
+
+  const date = new Date().toISOString().split("T")[0];
+  fs.mkdirSync(path.join(WS, "06_Code_Plans"), { recursive: true });
+  fs.linkSync(victim, path.join(WS, "06_Code_Plans", `${date}_hardlinked_PLAN.md`));
+  const p = await plan.toolHandler({ feature_name: "hardlinked", files_to_modify: [], step_by_step_plan: "overwrite" });
+  assert.equal(p.error, true);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep");
+});
+
+test("submit_code_plan refuses a plan file that is a link", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "x9-outside-"));
+  const victim = path.join(outside, "victim.txt");
+  fs.writeFileSync(victim, "keep");
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  const date = new Date().toISOString().split("T")[0];
+  fs.mkdirSync(path.join(WS, "06_Code_Plans"), { recursive: true });
+  if (!tryLink(victim, path.join(WS, "06_Code_Plans", `${date}_linked_PLAN.md`), "file")) return t.skip("cannot create file symlinks here");
+  const r = await plan.toolHandler({ feature_name: "linked", files_to_modify: ["a.js"], step_by_step_plan: "overwrite" });
+  assert.equal(r.error, true);
+  assert.match(r.message, /link/);
+  assert.equal(fs.readFileSync(victim, "utf8"), "keep");
+});
+
+test("submit_code_plan refuses a 06_Code_Plans folder that is a link", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "x9-outside-"));
+  // PLAN_DIR is fixed at import, so move the real folder aside and put a link in its place.
+  const planDir = path.join(WS, "06_Code_Plans");
+  const saved = planDir + ".saved";
+  fs.mkdirSync(planDir, { recursive: true });
+  fs.renameSync(planDir, saved);
+  t.after(() => {
+    fs.rmSync(planDir, { recursive: true, force: true });
+    fs.renameSync(saved, planDir);
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+  if (!tryLink(outside, planDir, "junction")) return t.skip("cannot create links here");
+  const r = await plan.toolHandler({ feature_name: "via-link", files_to_modify: [], step_by_step_plan: "x" });
+  assert.equal(r.error, true);
+  assert.deepEqual(fs.readdirSync(outside), []);
 });

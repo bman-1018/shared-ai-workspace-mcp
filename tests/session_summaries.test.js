@@ -150,3 +150,17 @@ test("parseFrontmatter handles lists, quotes and a missing block", () => {
   assert.equal(body, "Body");
   assert.deepEqual(find.parseFrontmatter("no header").meta, {});
 });
+
+test("a 04_Session_Notes folder that is a link is refused (CWE-59)", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "x9-outside-"));
+  const saved = NOTES + ".saved";
+  fs.renameSync(NOTES, saved);
+  t.after(() => {
+    fs.rmSync(NOTES, { recursive: true, force: true });
+    fs.renameSync(saved, NOTES);
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+  try { fs.symlinkSync(outside, NOTES, "junction"); } catch { return t.skip("cannot create links here"); }
+  await assert.rejects(save.toolHandler(base), /link/);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});

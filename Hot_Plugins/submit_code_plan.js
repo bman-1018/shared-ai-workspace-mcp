@@ -1,7 +1,5 @@
-import fs from "fs/promises";
 import path from "path";
-import fsSync from "fs";
-import { X9_ROOT, resolveInside } from "./_shared.js";
+import { X9_ROOT, resolveInside, writeFileInside } from "./_shared.js";
 
 export const toolName = "submit_code_plan";
 
@@ -31,11 +29,6 @@ export const toolHandler = async (args) => {
     throw new Error("files_to_modify must be an array and step_by_step_plan must be a string.");
   }
   
-  // Ensure the directory exists
-  if (!fsSync.existsSync(PLAN_DIR)) {
-    await fs.mkdir(PLAN_DIR, { recursive: true });
-  }
-
   // Generate Windows filenames
   const date = new Date().toISOString().split('T')[0];
   // SECURITY: feature_name goes into a file name, so strip anything that could
@@ -48,8 +41,9 @@ export const toolHandler = async (args) => {
   const markdownContent = `# CODE PLAN: ${feature_name}\n**Date:** ${date}\n**Status:** PENDING REVIEW\n\n## Files Targeted\n${files_to_modify.map(f => `- ${f}`).join('\n')}\n\n## Strategy\n${step_by_step_plan}`;
 
   try {
-    // Save the Plan to the X9 Drive
-    await fs.writeFile(absolutePath, markdownContent, "utf8");
+    // Save the plan. Creates 06_Code_Plans if needed and refuses a link in place of
+    // the folder or the file, so the write can't land outside it.
+    await writeFileInside(X9_ROOT, absolutePath, markdownContent);
     
     // Halt the AI
     return { 

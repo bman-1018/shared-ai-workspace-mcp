@@ -3,6 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import fs from "fs/promises";
+import { constants as fsConstants } from "fs";
 import path from "path";
 import { execFile } from "child_process";
 import util from "util";
@@ -62,12 +63,21 @@ async function safeResolve(requested) {
 
 // Read one text file with a size limit. Rejects folders and binary files.
 async function readTextLimited(realPath, maxBytes = MAX_FILE_BYTES) {
-  const st = await fs.stat(realPath);
-  if (!st.isFile()) throw new Error("Not a file.");
-  if (st.size > maxBytes) {
-    throw new Error(`File is ${st.size} bytes, over the ${maxBytes} byte limit.`);
+  // Check and read through one open handle, so the file cannot be swapped in between.
+  // realPath is already resolved, so a link here means it was swapped after the check: O_NOFOLLOW refuses it.
+  // O_NONBLOCK keeps a named pipe from hanging the open; the isFile check then rejects it.
+  const handle = await fs.open(realPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0));
+  let buf;
+  try {
+    const st = await handle.stat();
+    if (!st.isFile()) throw new Error("Not a file.");
+    if (st.size > maxBytes) {
+      throw new Error(`File is ${st.size} bytes, over the ${maxBytes} byte limit.`);
+    }
+    buf = await handle.readFile();
+  } finally {
+    await handle.close();
   }
-  const buf = await fs.readFile(realPath);
   if (buf.subarray(0, 8192).includes(0)) throw new Error("Binary file, not shown.");
   return buf.toString("utf-8");
 }

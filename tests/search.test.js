@@ -25,6 +25,15 @@ fs.mkdirSync(path.join(WS, "notes"), { recursive: true });
 fs.writeFileSync(path.join(WS, "notes", "plan.md"), "The rollout plan mentions a unique needlephrase here.");
 fs.writeFileSync(path.join(WS, "notes", "secrets.txt"), "hiddenvaluexyz should never be indexed");
 fs.writeFileSync(path.join(WS, "notes", "credentials.json"), '{"k":"hiddencredvalue"}');
+// Links to files and folders outside the workspace must not be indexed (CWE-59).
+// File symlinks need Developer Mode or admin on Windows; folder junctions do not.
+const OUTSIDE = path.join(ROOT, "outside");
+fs.mkdirSync(OUTSIDE);
+fs.writeFileSync(path.join(OUTSIDE, "private.txt"), "linkedfilesecret outside the workspace");
+fs.writeFileSync(path.join(OUTSIDE, "other.md"), "linkeddirsecret outside the workspace");
+const tryLink = (target, link, type) => { try { fs.symlinkSync(target, link, type); return true; } catch { return false; } };
+const FILE_LINKED = tryLink(path.join(OUTSIDE, "private.txt"), path.join(WS, "notes", "innocent.md"), "file");
+const DIR_LINKED = tryLink(OUTSIDE, path.join(WS, "notes", "linked_dir"), "junction");
 const DB = path.join(ROOT, "index.db");
 const PWNED = path.join(ROOT, "pwned.txt");
 // These tests cover keyword search; semantic search has its own file (semantic.test.js).
@@ -44,6 +53,8 @@ test("search finds indexed text and skips secret-named files", { skip: PY ? fals
 
   assert.equal((await toolHandler({ query: "hiddenvaluexyz" })).status, "No Results");
   assert.equal((await toolHandler({ query: "hiddencredvalue" })).status, "No Results");
+  if (FILE_LINKED) assert.equal((await toolHandler({ query: "linkedfilesecret" })).status, "No Results");
+  if (DIR_LINKED) assert.equal((await toolHandler({ query: "linkeddirsecret" })).status, "No Results");
 
   // Shell metacharacters in the query must not run anything.
   const evil = `x" & echo INJECTED > "${PWNED}" & "`;
