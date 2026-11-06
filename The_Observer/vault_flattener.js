@@ -13,6 +13,20 @@ const X9_ROOT = path.resolve(process.env.X9_ROOT || "X:\\Claude_Workspace");
 const HISTORY_DIR = path.join(X9_ROOT, "07_Chat_History");
 const OUTPUT_DIR = path.join(HISTORY_DIR, "Readable_Logs");
 
+// The session date comes from the log and goes into a file name, so only a plain
+// YYYY-MM-DD is used. Anything else ("../x", "a\\b", a bad number) falls back to
+// the log file's modified date.
+function isoDay(value, fallbackMs) {
+    let day = "";
+    if (typeof value === 'number') {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) day = d.toISOString().slice(0, 10);
+    } else if (typeof value === 'string') {
+        day = value.split('T')[0];
+    }
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : new Date(fallbackMs).toISOString().slice(0, 10);
+}
+
 async function findAuditFiles(dir, fileList = []) {
     if (!await fs.pathExists(dir)) return fileList;
     try {
@@ -67,14 +81,7 @@ async function flattenEverything() {
                     const msg = entry.message || entry; 
 
                     if (isFirst) {
-                        let rawDate = entry._audit_timestamp || entry.createdAt || entry.timestamp;
-                        if (typeof rawDate === 'number') {
-                            sessionDate = new Date(rawDate).toISOString().split('T')[0];
-                        } else if (typeof rawDate === 'string') {
-                            sessionDate = rawDate.split('T')[0];
-                        } else {
-                            sessionDate = new Date(fileObj.mtime).toISOString().split('T')[0];
-                        }
+                        sessionDate = isoDay(entry._audit_timestamp || entry.createdAt || entry.timestamp, fileObj.mtime);
 
                         const rawContent = msg.content || "";
                         title = typeof rawContent === 'string' && rawContent.length > 0 ? rawContent.substring(0, 40) : "Log";
@@ -97,7 +104,13 @@ async function flattenEverything() {
 
             if (mdContent && !isFirst) {
                 const fileName = `${sessionDate}_${title}_[${shortId}].md`;
-                const targetPath = path.join(OUTPUT_DIR, fileObj.type, fileName);
+                const outDir = path.join(OUTPUT_DIR, fileObj.type);
+                const targetPath = path.join(outDir, fileName);
+                // Every part of the name is already reduced to safe characters; this
+                // is a second check that the file stays in the output folder.
+                if (path.dirname(targetPath) !== outDir) {
+                    throw new Error(`Refusing an output name that leaves ${outDir}: ${fileName}`);
+                }
 
                 let needsUpdate = true;
                 try {

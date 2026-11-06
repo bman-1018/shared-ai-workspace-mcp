@@ -3,6 +3,7 @@ import glob
 import os
 import re
 import sqlite3
+import stat
 import time
 from pathlib import Path
 
@@ -36,6 +37,36 @@ SENSITIVE_NAME = re.compile(
     r"(^|[._-])(secrets?|credentials?|service[-_]?account|private[-_]?key|id_rsa|id_ed25519)([._-]|$)",
     re.IGNORECASE,
 )
+
+
+_OPEN_FLAGS = (os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+               | getattr(os, "O_BINARY", 0))
+
+
+def is_link(path):
+    """A symlink, or on Windows a junction (os.walk does not treat junctions as links)."""
+    isjunction = getattr(os.path, "isjunction", None)
+    return os.path.islink(path) or bool(isjunction and isjunction(path))
+
+
+def read_indexable(path):
+    """(text, mtime) for a regular file under MAX_FILE_BYTES, else None.
+
+    Links are never followed: a notes.md that points at a file outside the workspace
+    would otherwise put that file's contents in the index (and the name filter above
+    only sees the link's name). O_NOFOLLOW refuses a link swapped in after the check;
+    it is 0 on Windows, where the check before opening is the guard. The size and type
+    are checked on the open file, and O_NONBLOCK keeps a named pipe from hanging.
+    """
+    if is_link(path):
+        return None
+    fd = os.open(path, _OPEN_FLAGS)
+    with os.fdopen(fd, "r", encoding="utf-8") as f:
+        st = os.fstat(f.fileno())
+        # Skip massive files to prevent memory blowout
+        if not stat.S_ISREG(st.st_mode) or st.st_size >= MAX_FILE_BYTES:
+            return None
+        return f.read(), st.st_mtime
 
 
 def index_roots():
@@ -86,7 +117,8 @@ def build_index():
     for base in index_roots():
         for root, dirs, files in os.walk(base):
             dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith('.')
-                       and os.path.normcase(os.path.abspath(os.path.join(root, d))) not in SKIP_PATHS]
+                       and os.path.normcase(os.path.abspath(os.path.join(root, d))) not in SKIP_PATHS
+                       and not is_link(os.path.join(root, d))]
             if os.path.basename(root) == "07_Chat_History":
                 dirs[:] = [d for d in dirs if d.lower() not in CHAT_HISTORY_RAW]
 
@@ -95,11 +127,9 @@ def build_index():
                 if ext in ALLOWED_EXTENSIONS and not SENSITIVE_NAME.search(file) and not ACTION_LOG.search(file):
                     full_path = os.path.join(root, file)
                     try:
-                        # Skip massive files to prevent memory blowout
-                        if os.path.getsize(full_path) < MAX_FILE_BYTES:
-                            with open(full_path, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                            mtime = os.path.getmtime(full_path)
+                        found = read_indexable(full_path)
+                        if found is not None:
+                            content, mtime = found
                             modified = datetime.date.fromtimestamp(mtime).isoformat()
                             cursor.execute(
                                 'INSERT INTO x9_search (path, content, modified) VALUES (?, ?, ?)',
