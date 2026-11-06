@@ -1,7 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import fsSync from "fs";
-import { X9_ROOT, HOT_PLUGINS_DIR, resolveInside } from "./_shared.js";
+import { X9_ROOT, HOT_PLUGINS_DIR, resolveInside, ensureRealDir, writeFileInside, readFileInside } from "./_shared.js";
 
 export const toolName = "panoptic_push";
 
@@ -57,10 +56,6 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export const toolHandler = async (args) => {
   const { filename, category, chunk_data, is_first_chunk, is_final_chunk } = args;
   
-  if (!fsSync.existsSync(TEMP_DIR)) {
-    await fs.mkdir(TEMP_DIR, { recursive: true });
-  }
-
   const targetDir = Object.hasOwn(routes, category) ? routes[category] : undefined;
   if (!targetDir) throw new Error(`Invalid category: ${category}`);
   if (typeof chunk_data !== "string" || chunk_data.length > MAX_CHUNK_CHARS) {
@@ -75,24 +70,22 @@ export const toolHandler = async (args) => {
   const tempPath = resolveInside(TEMP_DIR, `${category}__${filename.replace(/[\\/]/g, "__")}.part`);
 
   try {
+    // SECURITY: the reads and writes below refuse symlinks and junctions in the temp
+    // folder, the category folder and any sub-folder, so a link placed in the
+    // workspace can't send the write (or the read) somewhere else.
+    await ensureRealDir(HOT_PLUGINS_DIR, TEMP_DIR);
+
     // 1. Write or Append to the temporary file
-    if (is_first_chunk) {
-      await fs.writeFile(tempPath, chunk_data, "utf8");
-    } else {
-      await fs.appendFile(tempPath, chunk_data, "utf8");
-    }
-    if ((await fs.stat(tempPath)).size > MAX_FILE_BYTES) {
+    const size = await writeFileInside(HOT_PLUGINS_DIR, tempPath, chunk_data, { append: !is_first_chunk });
+    if (size > MAX_FILE_BYTES) {
       await fs.unlink(tempPath);
       throw new Error(`File exceeds the ${MAX_FILE_BYTES} byte limit and was discarded.`);
     }
 
     // 2. If it's the last chunk, move it to the final destination
     if (is_final_chunk) {
-      if (!fsSync.existsSync(path.dirname(finalPath))) {
-        await fs.mkdir(path.dirname(finalPath), { recursive: true });
-      }
-      
-      await fs.copyFile(tempPath, finalPath);
+      const assembled = await readFileInside(HOT_PLUGINS_DIR, tempPath);
+      await writeFileInside(X9_ROOT, finalPath, assembled);
       await fs.unlink(tempPath);
       
       return { status: "Success", message: `File assembled from its chunks and saved to ${finalPath}` };

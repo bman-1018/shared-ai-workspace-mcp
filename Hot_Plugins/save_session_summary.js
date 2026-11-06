@@ -6,8 +6,7 @@
 // access to that folder and writes its own summaries to its own workspace.
 // ============================================================
 
-import fs from "fs/promises";
-import { CLAUDE_SUMMARY_DIR, localDate, slugify, resolveInside } from "./_shared.js";
+import { X9_ROOT, CLAUDE_SUMMARY_DIR, localDate, slugify, resolveInside, ensureRealDir, writeFileInside } from "./_shared.js";
 import { redactSecrets } from "../the_forge/log_sanitize.js";
 
 export const toolName = "save_session_summary";
@@ -105,17 +104,18 @@ export const toolHandler = async (args) => {
     next_steps: list(a.next_steps, "next_steps"),
   });
 
-  await fs.mkdir(CLAUDE_SUMMARY_DIR, { recursive: true });
+  // Refuses a 04_Session_Notes that is a link, so the summary can't land outside the workspace.
+  await ensureRealDir(X9_ROOT, CLAUDE_SUMMARY_DIR);
   // A title with no Latin letters or digits has nothing to build a name from; use the time.
   let slug = slugify(title);
   if (slug === "session") slug = `session-${time.replace(":", "")}`;
   const base = `${date}_${slug}`;
-  // "wx" fails if the file exists, so an earlier summary is never overwritten.
+  // exclusive fails if the file exists, so an earlier summary is never overwritten.
   for (let n = 1; n <= 50; n++) {
     const filename = n === 1 ? `${base}.md` : `${base}-${n}.md`;
     const target = resolveInside(CLAUDE_SUMMARY_DIR, filename);
     try {
-      await fs.writeFile(target, markdown, { encoding: "utf8", flag: "wx" });
+      await writeFileInside(X9_ROOT, target, markdown, { exclusive: true });
       const redacted = redactSecrets(rawText) !== rawText;
       return {
         status: "Success",

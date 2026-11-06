@@ -18,6 +18,10 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 - `docs/ENGINEERING_NOTES.md`, `CONTRIBUTING.md`, issue and pull request templates.
 
 ### Security
+- Writes no longer follow links (code scanning alerts, CWE-59). `panoptic_push`, `submit_code_plan` and `save_session_summary` refuse a symlink or junction in place of the target folder, any sub-folder, the file itself or the `panoptic_push` temp part file. They create missing folders one at a time so `mkdir` never follows a link, and they refuse an existing file that has another hard link. A workspace folder you made into a link on purpose (for example `01_Active_Projects` pointing at another drive) is now refused for these writes; the workspace root itself may still be a link.
+- The search indexer skips symlinked files and linked folders (including Windows junctions), so a `notes.md` that points at a file outside the workspace is not copied into the index (CWE-59).
+- The Observer's flattener accepts only a `YYYY-MM-DD` session date from a chat log before using it in a file name, and checks the output stays in `Readable_Logs` (CWE-22).
+- `find_sessions` (read) and the read-only bridge check and read a file through one open handle, so it cannot be swapped between the check and the read (CodeQL `js/file-system-race`). Named pipes are refused instead of hanging the call, and the bridge refuses a link swapped in after its path check.
 - Transitive dependencies in `the_forge` and `readonly_bridge` updated (`body-parser`, `zod`, `fast-uri`, `ip-address`) so `npm audit` reports 0 again.
 
 ### Fixed

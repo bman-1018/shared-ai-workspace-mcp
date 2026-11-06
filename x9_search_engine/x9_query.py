@@ -113,7 +113,8 @@ def run(query, limit=DEFAULT_LIMIT, mode="hybrid"):
     marker = x9_vectors.incomplete_marker(DB_PATH)
     if semantic is not None and os.path.exists(marker):
         try:
-            left = open(marker).read().strip()
+            with open(marker) as f:
+                left = f.read().strip()
         except OSError:
             left = "some"
         partial = f"the first build is still running ({left} files not embedded yet), so semantic results are incomplete"

@@ -56,6 +56,8 @@ A security review was done in October 2026 before this repo was released. It was
 | `X9_External_Drive` lists workspace subfolders, not the workspace root | The file server cannot exclude a folder, so listing the root would let Claude write a plugin |
 | Search skips the Forge action log and the raw chat copies in `07_Chat_History`, and rebuilds the index into a temporary file before swapping it in | The action log repeats earlier results and file contents; a rebuild during a search never shows a half-built index |
 | Session summaries are saved with exclusive create, a safe file name, one-line quoted titles and secret patterns replaced (keys, tokens, JSON web tokens, `user:password@` URLs and `password: value` text; best effort). `find_sessions` skips symbolic links | A summary can not overwrite an earlier one, escape its folder, or forge its own header |
+| `panoptic_push`, `submit_code_plan` and `save_session_summary` refuse symlinks, junctions and hard-linked files below the workspace root, and the indexer skips links. Found by code scanning in November 2026 | A link placed in the workspace could otherwise redirect a write outside it, or copy an outside file into the search index. On Windows the check runs just before the file is opened, which leaves a small gap where a link could be swapped in; on Linux and macOS the open itself refuses a link |
+| The Observer only uses a `YYYY-MM-DD` date from a chat log in an output file name | A crafted log could otherwise use `../` in its date to write outside `Readable_Logs` |
 | Search and lookup tools declare themselves read only | Lets the client skip repeated approval for reads. It is a hint to the client, not a security control: the code still enforces what each tool can do |
 
 ### Known and accepted

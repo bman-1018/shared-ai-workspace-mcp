@@ -77,6 +77,16 @@ test("symbolic links are neither listed nor read", async (t) => {
   assert.doesNotMatch(JSON.stringify(read), /TOPSECRET/);
 });
 
+test("a named pipe is refused without hanging", { skip: process.platform === "win32" ? "no mkfifo on Windows" : false }, async () => {
+  const pipe = path.join(OUTBOX, "pipe.md");
+  const { execFileSync } = await import("node:child_process");
+  execFileSync("mkfifo", [pipe]);
+  try {
+    const read = await find.toolHandler({ read: "codex/outbox/pipe.md" });
+    assert.equal(read.error, true);
+  } finally { fs.rmSync(pipe, { force: true }); }
+});
+
 test("reading a huge file loads only the start", async () => {
   fs.writeFileSync(path.join(OUTBOX, "huge.md"), "# huge\n" + "word ".repeat(200_000));
   const r = await find.toolHandler({ read: "codex/outbox/huge.md" });
