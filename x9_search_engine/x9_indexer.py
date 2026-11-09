@@ -52,20 +52,46 @@ def is_link(path):
     return os.path.islink(path) or bool(isjunction and isjunction(path))
 
 
-def read_indexable(path):
+def is_inside(real_path, real_root):
+    """True if real_path is real_root or below it. Both must already be real paths."""
+    path_c, root_c = os.path.normcase(real_path), os.path.normcase(real_root)
+    try:
+        return os.path.commonpath([path_c, root_c]) == root_c
+    except ValueError:  # different drives on Windows
+        return False
+
+
+def read_indexable(path, real_root=None):
     """(text, mtime) for a regular file under MAX_FILE_BYTES, else None.
 
     Links are never followed: a notes.md that points at a file outside the workspace
     would otherwise put that file's contents in the index (and the name filter above
-    only sees the link's name). O_NOFOLLOW refuses a link swapped in after the check;
-    it is 0 on Windows, where the check before opening is the guard. The size and type
-    are checked on the open file, and O_NONBLOCK keeps a named pipe from hanging.
+    only sees the link's name). Four cases are covered:
+    - a symlink or junction: refused by the lstat check before opening;
+    - one swapped in after that check: O_NOFOLLOW refuses it where the platform has it,
+      and everywhere (including Windows, where O_NOFOLLOW is 0) the open file must be
+      the same file the check saw;
+    - a folder on the way swapped for a link after os.walk listed it: with real_root
+      given, the file's real path must still be inside it;
+    - a hard link: it looks like an ordinary file, so a file with more than one link
+      is skipped.
+    The size and type are checked on the open file, and O_NONBLOCK keeps a named pipe
+    from hanging.
     """
     if is_link(path):
+        return None
+    before = os.lstat(path)
+    if not stat.S_ISREG(before.st_mode):
         return None
     fd = os.open(path, _OPEN_FLAGS)
     with os.fdopen(fd, "r", encoding="utf-8") as f:
         st = os.fstat(f.fileno())
+        if (st.st_dev, st.st_ino) != (before.st_dev, before.st_ino):
+            return None
+        if st.st_nlink > 1:
+            return None
+        if real_root is not None and not is_inside(os.path.realpath(path), real_root):
+            return None
         # Skip massive files to prevent memory blowout
         if not stat.S_ISREG(st.st_mode) or st.st_size >= MAX_FILE_BYTES:
             return None
@@ -118,6 +144,8 @@ def build_index():
     docs = []  # kept for the semantic index: (path, content, modified, mtime)
 
     for base in index_roots():
+        # The root itself may be a link (the user chose it); everything below must stay in it.
+        real_base = os.path.realpath(base)
         for root, dirs, files in os.walk(base):
             dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith('.')
                        and os.path.normcase(os.path.abspath(os.path.join(root, d))) not in SKIP_PATHS
@@ -130,7 +158,7 @@ def build_index():
                 if ext in ALLOWED_EXTENSIONS and not SENSITIVE_NAME.search(file) and not ACTION_LOG.search(file):
                     full_path = os.path.join(root, file)
                     try:
-                        found = read_indexable(full_path)
+                        found = read_indexable(full_path, real_base)
                         if found is not None:
                             content, mtime = found
                             modified = datetime.date.fromtimestamp(mtime).isoformat()

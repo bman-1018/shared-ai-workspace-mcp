@@ -2,12 +2,18 @@
  * The_Observer/vault_flattener.js
  * Turns the copied Cowork chat logs (audit.jsonl) into readable markdown files in
  * 07_Chat_History\Readable_Logs\Cowork. Unchanged logs are skipped.
+ *
+ * Links are never followed (CWE-59). The markdown lands in a folder that x9_search
+ * indexes, so a linked log would put an outside file's contents in search, and a
+ * linked output folder would send the write outside the workspace. Logs that are
+ * symlinks, junctions or hard links, and folders that are links, are skipped; the
+ * reads and writes go through the same no-follow helpers as the Forge plugins.
  */
 
 import fs from 'fs-extra';
 import path from 'path';
-import readline from 'readline';
 import { workspaceRoot } from '../the_forge/platform_paths.js';
+import { ensureRealDir, readFileInside, writeFileInside } from '../Hot_Plugins/_shared.js';
 
 // Same root as The Forge: X9_ROOT, or the default for this operating system.
 const X9_ROOT = workspaceRoot();
@@ -29,15 +35,22 @@ function isoDay(value, fallbackMs) {
 }
 
 async function findAuditFiles(dir, fileList = []) {
-    if (!await fs.pathExists(dir)) return fileList;
+    try {
+        // lstat, not stat: a link (to a file or a folder) is skipped, never followed.
+        const own = await fs.lstat(dir);
+        if (!own.isDirectory()) return fileList;
+    } catch (err) {
+        if (err.code === 'ENOENT') return fileList;
+        throw err;
+    }
     try {
         const items = await fs.readdir(dir);
         for (const item of items) {
             const fullPath = path.join(dir, item);
-            const stat = await fs.stat(fullPath);
+            const stat = await fs.lstat(fullPath);
             if (stat.isDirectory()) {
                 await findAuditFiles(fullPath, fileList);
-            } else if (item === 'audit.jsonl') {
+            } else if (item === 'audit.jsonl' && stat.isFile() && stat.nlink === 1) {
                 // Exactly 'audit.jsonl': temp and backup copies are ignored.
                 fileList.push({ path: fullPath, mtime: stat.mtimeMs });
             }
@@ -50,7 +63,14 @@ async function findAuditFiles(dir, fileList = []) {
 }
 
 async function flattenEverything() {
-    await fs.ensureDir(path.join(OUTPUT_DIR, "Cowork"));
+    try {
+        // Refuses 07_Chat_History, Readable_Logs or Cowork if it is a link.
+        await ensureRealDir(X9_ROOT, path.join(OUTPUT_DIR, "Cowork"));
+    } catch (err) {
+        console.error(`[Observer] Cannot use the output folder: ${err.message}`);
+        process.exitCode = 1;
+        return;
+    }
 
     const coworkFiles = await findAuditFiles(path.join(HISTORY_DIR, "Cowork"));
     const allFiles = coworkFiles.map(f => ({ ...f, type: 'Cowork' }));
@@ -68,15 +88,17 @@ async function flattenEverything() {
             }
             if (!shortId) shortId = "log";
 
-            const fileStream = fs.createReadStream(fileObj.path);
-            const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-            
+            // Read through a no-follow handle: a log swapped for a link after the folder
+            // walk above is refused, not read.
+            const text = (await readFileInside(X9_ROOT, fileObj.path)).toString('utf8');
+
             let mdContent = "";
             let sessionDate = "Unknown_Date";
             let title = "Session";
             let isFirst = true;
 
-            for await (const line of rl) {
+            for (const line of text.split(/\r?\n/)) {
+                if (!line) continue;
                 try {
                     const entry = JSON.parse(line);
                     const msg = entry.message || entry; 
@@ -115,14 +137,15 @@ async function flattenEverything() {
 
                 let needsUpdate = true;
                 try {
-                    const mdStat = await fs.stat(targetPath);
-                    if (mdStat.mtimeMs >= fileObj.mtime) {
-                        needsUpdate = false; 
+                    const mdStat = await fs.lstat(targetPath);
+                    if (mdStat.isFile() && mdStat.mtimeMs >= fileObj.mtime) {
+                        needsUpdate = false;
                     }
                 } catch (e) { }
 
                 if (needsUpdate) {
-                    await fs.writeFile(targetPath, mdContent);
+                    // Refuses a link (or a hard-linked file) in place of the output file or folder.
+                    await writeFileInside(X9_ROOT, targetPath, mdContent);
                 }
             }
         } catch (err) {
