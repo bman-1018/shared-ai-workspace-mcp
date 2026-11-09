@@ -87,7 +87,12 @@ export function resolveInside(baseDir, relPath, pathLib = path) {
 // workspace (a folder, or the file itself) could still send a write somewhere else.
 // These helpers refuse links below rootDir. rootDir itself may be a link, because the
 // user chose it.
-// O_NOFOLLOW is 0 on Windows, so there the lstat check before opening is the guard.
+// O_NOFOLLOW refuses a link at the file name where the platform has it. It is 0 on
+// Windows, so after every open the folders are checked again and the open file must be
+// the file now at that name (and the one checked before opening, if there was one).
+// A link swapped in between the check and the open is refused before anything is
+// written. The one thing such a swap can still do is leave a new empty file where the
+// link pointed, since the open creates it before the check can run.
 // O_NONBLOCK keeps a named pipe from hanging the open; it is then refused as not a file.
 // ------------------------------------------------------------
 const { O_RDONLY, O_WRONLY, O_CREAT, O_EXCL, O_APPEND } = fs.constants;
@@ -107,13 +112,11 @@ function linkError(p) {
   return new Error(`Refusing to follow a link (symlink or junction): ${p}`);
 }
 
-/**
- * Make sure dir exists and that no folder between rootDir and dir is a link.
- * Folders are created one at a time, so mkdir never follows a link out of the workspace.
- */
-export async function ensureRealDir(rootDir, dir) {
+// Check that no folder between rootDir and dir is a link. With create, missing folders
+// are made one at a time, so mkdir never follows a link out of the workspace.
+async function walkRealDir(rootDir, dir, create) {
   const { root, rel } = relativeInside(rootDir, dir);
-  await fs.promises.mkdir(root, { recursive: true });
+  if (create) await fs.promises.mkdir(root, { recursive: true });
   let current = root;
   for (const part of rel.split(path.sep).filter(Boolean)) {
     current = path.join(current, part);
@@ -121,7 +124,7 @@ export async function ensureRealDir(rootDir, dir) {
     try {
       st = await fs.promises.lstat(current);
     } catch (err) {
-      if (err.code !== "ENOENT") throw err;
+      if (err.code !== "ENOENT" || !create) throw err;
       try { await fs.promises.mkdir(current); } catch (e) { if (e.code !== "EEXIST") throw e; }
       st = await fs.promises.lstat(current);
     }
@@ -131,21 +134,49 @@ export async function ensureRealDir(rootDir, dir) {
   return current;
 }
 
-async function refuseLeafLink(target) {
+/**
+ * Make sure dir exists and that no folder between rootDir and dir is a link.
+ * Folders are created one at a time, so mkdir never follows a link out of the workspace.
+ */
+export function ensureRealDir(rootDir, dir) {
+  return walkRealDir(rootDir, dir, true);
+}
+
+// lstat as BigInt, so file ids compare exactly (Windows file ids can pass 2^53).
+async function lstatOrNull(p) {
   try {
-    if ((await fs.promises.lstat(target)).isSymbolicLink()) throw linkError(target);
+    return await fs.promises.lstat(p, { bigint: true });
   } catch (err) {
-    if (err.code !== "ENOENT") throw err;
+    if (err.code === "ENOENT") return null;
+    throw err;
   }
 }
 
-async function openNoFollow(target, flags, mode) {
-  await refuseLeafLink(target);
+const sameFile = (a, b) => a.dev === b.dev && a.ino === b.ino;
+
+async function openNoFollow(rootDir, target, flags, mode) {
+  const before = await lstatOrNull(target);
+  if (before && before.isSymbolicLink()) throw linkError(target);
+  let fh;
   try {
-    return await fs.promises.open(target, flags | O_NOFOLLOW | O_NONBLOCK, mode);
+    fh = await fs.promises.open(target, flags | O_NOFOLLOW | O_NONBLOCK, mode);
   } catch (err) {
     // ELOOP on Linux, EMLINK on FreeBSD: the last part of the path is a link.
     if (err.code === "ELOOP" || err.code === "EMLINK") throw linkError(target);
+    throw err;
+  }
+  try {
+    // Catch a link swapped in after the check above (O_NOFOLLOW is 0 on Windows):
+    // the folders must still be real, and the open file must be the one at the name now.
+    await walkRealDir(rootDir, path.dirname(target), false);
+    const opened = await fh.stat({ bigint: true });
+    const now = await lstatOrNull(target);
+    if (!now || now.isSymbolicLink() || !sameFile(now, opened) || (before && !sameFile(before, opened))) {
+      throw linkError(target);
+    }
+    return fh;
+  } catch (err) {
+    await fh.close();
     throw err;
   }
 }
@@ -161,7 +192,7 @@ export async function writeFileInside(rootDir, target, data, { exclusive = false
   relativeInside(rootDir, target);
   await ensureRealDir(rootDir, path.dirname(target));
   const flags = O_WRONLY | O_CREAT | (exclusive ? O_EXCL : 0) | (append ? O_APPEND : 0);
-  const fh = await openNoFollow(target, flags, 0o644);
+  const fh = await openNoFollow(rootDir, target, flags, 0o644);
   try {
     const st = await fh.stat();
     if (!st.isFile()) throw new Error(`Not a regular file: ${target}`);
@@ -175,12 +206,18 @@ export async function writeFileInside(rootDir, target, data, { exclusive = false
   }
 }
 
-/** Read target, which must be inside rootDir, without following links. */
+/**
+ * Read target, which must be inside rootDir, without following links.
+ * A file with more than one hard link is refused too: it may be a file from outside
+ * the workspace that a hard link has made look like one inside.
+ */
 export async function readFileInside(rootDir, target) {
   relativeInside(rootDir, target);
-  const fh = await openNoFollow(target, O_RDONLY);
+  const fh = await openNoFollow(rootDir, target, O_RDONLY);
   try {
-    if (!(await fh.stat()).isFile()) throw new Error(`Not a regular file: ${target}`);
+    const st = await fh.stat();
+    if (!st.isFile()) throw new Error(`Not a regular file: ${target}`);
+    if (st.nlink > 1) throw new Error(`Refusing to read a file with more than one hard link: ${target}`);
     return await fh.readFile();
   } finally {
     await fh.close();

@@ -34,6 +34,9 @@ fs.writeFileSync(path.join(OUTSIDE, "other.md"), "linkeddirsecret outside the wo
 const tryLink = (target, link, type) => { try { fs.symlinkSync(target, link, type); return true; } catch { return false; } };
 const FILE_LINKED = tryLink(path.join(OUTSIDE, "private.txt"), path.join(WS, "notes", "innocent.md"), "file");
 const DIR_LINKED = tryLink(OUTSIDE, path.join(WS, "notes", "linked_dir"), "junction");
+// A hard link looks like an ordinary file, so it gets past the link checks above.
+fs.writeFileSync(path.join(ROOT, "hard-outside.txt"), "hardlinkedsecret outside the workspace");
+const HARD_LINKED = (() => { try { fs.linkSync(path.join(ROOT, "hard-outside.txt"), path.join(WS, "notes", "harmless.md")); return true; } catch { return false; } })();
 const DB = path.join(ROOT, "index.db");
 const PWNED = path.join(ROOT, "pwned.txt");
 // These tests cover keyword search; semantic search has its own file (semantic.test.js).
@@ -55,6 +58,7 @@ test("search finds indexed text and skips secret-named files", { skip: PY ? fals
   assert.equal((await toolHandler({ query: "hiddencredvalue" })).status, "No Results");
   if (FILE_LINKED) assert.equal((await toolHandler({ query: "linkedfilesecret" })).status, "No Results");
   if (DIR_LINKED) assert.equal((await toolHandler({ query: "linkeddirsecret" })).status, "No Results");
+  if (HARD_LINKED) assert.equal((await toolHandler({ query: "hardlinkedsecret" })).status, "No Results");
 
   // Shell metacharacters in the query must not run anything.
   const evil = `x" & echo INJECTED > "${PWNED}" & "`;
